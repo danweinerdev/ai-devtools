@@ -363,3 +363,19 @@ func TestPolicyPerHarness(t *testing.T) {
 		t.Error("Claude policy changed")
 	}
 }
+
+func TestOpenCodeConfigInherit(t *testing.T) {
+	f := newFixture(t)
+	f.ocProject(m{
+		"profiles": m{"fast": m{"model": "acme/fast-1"}},
+		"agents":   m{"aid-explorer": "fast", "aid-oracle": "inherit"},
+	})
+	cfg, err := LoadOpenCode(f.cwd, f.env)
+	if err != nil || cfg.Agents["aid-explorer"] != "fast" || len(cfg.Agents) != 1 {
+		t.Fatalf("inherit should leave aid-oracle unrouted: %+v %v", cfg.Agents, err)
+	}
+	f.ocProject(m{"profiles": m{"inherit": m{"model": "acme/x"}}})
+	if _, err := LoadOpenCode(f.cwd, f.env); err == nil || !strings.Contains(err.Error(), "`inherit` is reserved") {
+		t.Fatalf("a profile named inherit must be refused: %v", err)
+	}
+}
