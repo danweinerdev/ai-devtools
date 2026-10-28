@@ -1,0 +1,12 @@
+{
+  "//": "Per-harness mappings for the generated agent files. Models are native to each harness: Claude reads model: from agents/*.md, OpenCode takes models from its router config, Codex inherits the session model.",
+  "prefix": "aid-",
+  "plugin": "ai-development",
+  "opencode": {
+    "readOnlyPermission": { "edit": "deny" },
+    "orchestrator": { "name": "aid-orchestrator", "skill": "aid-orchestrate" }
+  },
+  "codex": {
+    "readOnlySandbox": "read-only"
+  }
+}

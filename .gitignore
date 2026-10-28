@@ -1,0 +1,8 @@
+node_modules/
+.code-graph/
+*.log
+.DS_Store
+/tmp/
+__pycache__/
+*.pyc
+.claude/worktrees/

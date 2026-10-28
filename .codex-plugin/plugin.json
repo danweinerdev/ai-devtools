@@ -1,0 +1,24 @@
+{
+  "name": "ai-development",
+  "version": "0.1.0",
+  "description": "Think / Make / Learn: a judgement-first development workflow built around living PRDs.",
+  "author": {
+    "name": "Daniel Weiner"
+  },
+  "license": "MIT",
+  "keywords": ["prd", "planning", "workflow", "agents", "review"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AI Development",
+    "shortDescription": "Think, Make, Learn around living PRDs",
+    "longDescription": "Skills for exploring and deciding (Think), building and verifying (Make), and curating what was learned (Learn), anchored on user-owned, AI-maintained PRD documents.",
+    "developerName": "Daniel Weiner",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Help me think through this feature against its PRD.",
+      "Break this PRD down into testable pieces and build the first one.",
+      "Check the PRDs in this repo against the code and propose updates."
+    ]
+  }
+}

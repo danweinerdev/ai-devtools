@@ -1,0 +1,11 @@
+{
+  "name": "ai-development",
+  "version": "0.1.0",
+  "description": "Think / Make / Learn: a judgement-first development workflow built around living PRDs, with seven specialised agents.",
+  "author": {
+    "name": "Daniel Weiner"
+  },
+  "license": "MIT",
+  "hooks": "./harness/claude/hooks.json",
+  "keywords": ["prd", "planning", "workflow", "agents", "review"]
+}

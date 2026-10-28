@@ -1,0 +1,24 @@
+{
+  "name": "ai-development",
+  "version": "0.1.0",
+  "description": "Think / Make / Learn: a judgement-first development workflow of skills and agents for Claude Code, Codex, and OpenCode.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "skills/",
+    "agents/",
+    "dist/",
+    "skills-manifest.json",
+    "agents-manifest.json"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": ["opencode-plugin", "claude-code-plugin", "codex-plugin", "agent-skills", "prd"],
+  "author": "Daniel Weiner",
+  "license": "MIT"
+}
