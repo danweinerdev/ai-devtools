@@ -5,6 +5,7 @@ and the key decisions come out right. Pipes sample JSON through each hook."""
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,8 +25,24 @@ def fail(msg):
     print("FAIL " + msg, file=sys.stderr)
 
 
+def find_bash():
+    """The bash Claude Code runs hooks with. On Windows that's Git Bash: a bare
+    `bash` from Python resolves to System32's WSL launcher, which isn't it."""
+    if os.environ.get("AID_SMOKE_BASH"):
+        return os.environ["AID_SMOKE_BASH"]
+    if sys.platform == "win32":
+        for base in filter(None, [os.environ.get("PROGRAMFILES"), os.environ.get("PROGRAMW6432")]):
+            git_bash = os.path.join(base, "Git", "bin", "bash.exe")
+            if os.path.exists(git_bash):
+                return git_bash
+    return shutil.which("bash") or "bash"
+
+
+BASH = find_bash()
+
+
 def run(command, stdin, cwd, env=None):
-    return subprocess.run(["bash", "-c", command], input=stdin, text=True, capture_output=True,
+    return subprocess.run([BASH, "-c", command], input=stdin, text=True, capture_output=True,
                           cwd=cwd, timeout=30, check=False,
                           env={**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT, **(env or {})})
 
