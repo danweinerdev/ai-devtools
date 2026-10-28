@@ -39,7 +39,7 @@ const STARTUP_TIMEOUT_MS = 60_000
 const RUN_TIMEOUT_MS = 180_000
 const HTTP_TIMEOUT_MS = 10_000
 const MAX_API_BODY = 1024 * 1024
-const USAGE = "Usage: node .opencode-plugin/live/e2e.js --config PATH [--keep] [--opencode PATH] [--agents all|ID,ID,...]  (or AID_E2E_CONFIG=PATH)"
+const USAGE = "Usage: node .opencode-plugin/live/e2e.js [--config PATH] [--keep] [--opencode PATH] [--agents all|ID,ID,...]  (or AID_E2E_CONFIG=PATH; default: the aid.json aid resolves, as the plugin does)"
 const timer = (ms, callback) => { const value = setTimeout(callback, ms); value.unref?.(); return value }
 const stableError = (code) => { const error = new Error(code); error.code = code; return error }
 const unwrap = (value) => value && typeof value === "object" && "data" in value ? value.data : value
@@ -149,9 +149,29 @@ function runQuiet(binary, args, options = {}) {
   })
 }
 
+/**
+ * The config the plugin itself would use: aid resolves the nearest
+ * .opencode/aid.json, else ~/.config/opencode/aid.json, and validates it.
+ * Returns { path } or a skip naming why there is none.
+ */
+export async function defaultConfig(run = runQuiet, cwd = process.cwd()) {
+  const resolved = await run("aid", ["config", "--harness", "opencode", "--json"], { cwd })
+  if (resolved.missing) return { skip: "AID_NOT_ON_PATH", hint: "make install-aid (the plugin's routing and guards run through aid)" }
+  if (!resolved.ok) return { skip: "AID_CONFIG_INVALID", hint: resolved.stderr.trim() || "aid config failed" }
+  let source
+  try { ({ source } = JSON.parse(resolved.stdout)) } catch { return { skip: "AID_CONFIG_UNREADABLE", hint: "aid config printed no JSON" } }
+  if (!source) return { skip: "AID_CONFIG_NOT_FOUND", hint: "no .opencode/aid.json here or above and no ~/.config/opencode/aid.json; create one or pass --config" }
+  return { path: source }
+}
+
 /** Prerequisites, each a stable code: a skip names what's missing and how to fix it. */
 async function prerequisites(options) {
-  if (!options.config) return { skip: "AID_E2E_CONFIG_NOT_SET", hint: "point --config or AID_E2E_CONFIG at an aid.json with profiles for the aid-* agents" }
+  if (!options.config) {
+    const found = await defaultConfig()
+    if (found.skip) return found
+    options.config = found.path
+  }
+  console.log(`config: ${options.config}`)
   let user
   try { user = JSON.parse(readFileSync(options.config, "utf8")) } catch { return { skip: "AID_E2E_CONFIG_UNREADABLE", hint: `${options.config} isn't readable JSON` } }
   const binary = await resolveOpenCode(options.opencode)

@@ -4,7 +4,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { expectations, judgeGuard, parseArgs, planRows, scratchConfig } from "../live/e2e.js"
+import { defaultConfig, expectations, judgeGuard, parseArgs, planRows, scratchConfig } from "../live/e2e.js"
 
 const RESOLVED = {
   profiles: { fast: { model: "acme/fast-1" }, deep: { model: "acme/deep-2#high" }, lead: { model: "acme/lead-3" } },
@@ -72,4 +72,13 @@ test("options: config from the flag or AID_E2E_CONFIG; bad options are refused",
   assert.throws(() => parseArgs(["--agents", "nope"], {}), /Unknown row/)
   assert.throws(() => parseArgs(["--bogus"], {}), /Unknown option/)
   assert.throws(() => parseArgs(["--keep", "--keep"], {}), /Duplicate/)
+})
+
+test("default config: the aid.json aid resolves, or a clear skip", async () => {
+  const fake = (result) => async () => ({ ok: true, stdout: "", stderr: "", missing: false, ...result })
+  assert.deepEqual(await defaultConfig(fake({ stdout: JSON.stringify({ source: "/home/u/.config/opencode/aid.json" }) })), { path: "/home/u/.config/opencode/aid.json" })
+  assert.equal((await defaultConfig(fake({ stdout: JSON.stringify({ source: null }) }))).skip, "AID_CONFIG_NOT_FOUND")
+  assert.deepEqual(await defaultConfig(fake({ ok: false, stderr: "aid.json is invalid: agents.x\n" })), { skip: "AID_CONFIG_INVALID", hint: "aid.json is invalid: agents.x" })
+  assert.equal((await defaultConfig(fake({ ok: false, missing: true }))).skip, "AID_NOT_ON_PATH")
+  assert.equal((await defaultConfig(fake({ stdout: "not json" }))).skip, "AID_CONFIG_UNREADABLE")
 })
