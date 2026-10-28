@@ -1,0 +1,55 @@
+# The make check gate on Linux, macOS and Windows. Steps are spelled out
+# rather than run through make, so Windows needs no GNU make.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # go.mod pins the exact Go release.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # The Claude guardrail hooks and their tests are Python.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Generated files match sources
+        run: go run ./tools/plugin-compiler --check
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test (race detector)
+        run: go test -race ./...
+
+      - name: Guard tests
+        run: python -m unittest discover -s harness/claude/tests -t harness/claude/tests
+
+      - name: Guard smoke run
+        run: python harness/claude/scripts/smoke_hooks.py
