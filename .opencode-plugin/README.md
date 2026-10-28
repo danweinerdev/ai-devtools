@@ -1,14 +1,41 @@
-# OpenCode
+# OpenCode 2
 
-OpenCode has no plugin manifest file. It loads a plugin as a package: its `package.json` `main` (`../index.js`), listed in `opencode.json`:
+The OpenCode plugin: OpenCode 2 only. It has no manifest file; OpenCode loads the package root, resolving the entry from `package.json` `exports` (`.` is `./index.js`) or a root `index.js`, and the TUI half from the root `tui.tsx`.
+
+## Install
+
+List the repository directory under `plugins` in `opencode.json` (project or `~/.config/opencode/opencode.json`):
 
 ```jsonc
-{ "plugins": ["file:///path/to/ai-development"] }
+{ "plugins": ["/path/to/ai-development"] }
 ```
 
-- **Skills:** `index.js` registers every skill from `skills-manifest.json` in place, through the V2 `ctx.skill.transform` API.
-- **Agents:** the V2 agent editor can update and remove agents but can't add them, so agents install as files. `make install-opencode` symlinks `dist/opencode/agents/*.md` into `~/.config/opencode/agents/`.
-- **Models:** OpenCode ignores the Claude `model:` key. Map each `aid-*` agent to a model slot in the model-router plugin's `agents` map.
-- **Orchestrator:** `aid-orchestrator` is a primary agent generated from the `aid-orchestrate` skill. Run it as the root.
+`file:///path/to/ai-development` works too. Point it at the **directory**: OpenCode 2.2.0 refuses a file path (`configured plugin path must be a directory`). A fresh clone loads in about a second. A working checkout holding other large trees (for example `.claude/worktrees/`) has been seen to miss OpenCode's five-second activation limit (`Location plugins did not finish activating`); the cause isn't confirmed. If you hit it, load the plugin from a clean clone.
 
-This directory holds documentation only. Everything OpenCode loads is at the repo root or in `dist/opencode/`.
+`aid` must be on your PATH (`make install-aid`): model routing and the guards run through it. Without it the plugin still registers everything, warns, runs every agent on the session's model, and lets every tool call through.
+
+## What it does
+
+All from the plugin's `setup`, with nothing copied or symlinked:
+
+- **Agents.** The six `aid-*` specialists as subagents and `aid-orchestrator` as the default primary agent, through `ctx.agent.transform` (its `update` creates an agent that doesn't exist). Descriptions, modes and prompts come from the build's `dist/opencode/agents/*.md`; a read-only agent gets the rule `{action: "edit", resource: "*", effect: "deny"}`.
+- **Skills.** Every `aid-*` skill from `skills-manifest.json`, through `ctx.skill.transform`, pointing back into this package.
+- **Models.** `aid config --harness opencode --json` resolves `.opencode/aid.json` (project) or `~/.config/opencode/aid.json` (global); aid validates it, and an invalid one is reported loudly and to the orchestrator. Each agent the file maps to a profile runs on that profile's model (`provider/model#variant`, with `reasoning_effort`); an unmapped agent inherits the session's model. A routed `aid-orchestrator` also becomes the default model, because OpenCode runs primary turns on the default model, not the agent's own. A variant the model doesn't offer is dropped with a warning. `hide_free_models` hides OpenCode's free models.
+- **Guards.** Every tool call goes to `aid guard opencode-tool` first; a deny blocks the call with aid's reason. aid missing, failing or timing out lets the call through (reported once). The orchestrator's routing policy comes from `aid guard policy --harness opencode`.
+- **Sidebar.** An "Active sub-agents" panel in the TUI sidebar lists the conversation's running sub-agents and the model each is on.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `../index.js` | the entry: default export `{id, setup}` only |
+| `../tui.tsx` | re-exports `tui.tsx` for OpenCode's `<dir>/tui` lookup |
+| `src/setup.js` | the adapter: registration, routing, guard bridge, hooks |
+| `src/aid.js` | runs `aid` (no shell, with a timeout); never throws |
+| `src/agents.js`, `src/skills.js` | read the generated agents and the skills manifest |
+| `src/routing.js` | profiles to model refs, variant and free-model checks |
+| `src/active-subagents.js`, `tui.tsx` | the sidebar |
+| `test/*.test.js` | offline tests: `make test-opencode` (part of `make check` where node exists) |
+| `test/live/` | the live suite: `make test-opencode-e2e` (real model calls; local only) |
+
+Ported from opencode-model-router's OpenCode 2 adapter.

@@ -1,14 +1,18 @@
 {
   "name": "ai-development",
   "version": "0.1.0",
-  "description": "Think / Make / Learn: a judgement-first development workflow of skills and agents for Claude Code, Codex, and OpenCode.",
+  "description": "Think / Make / Learn: a judgement-first development workflow of skills and agents for Claude Code, Codex, and OpenCode 2.",
   "type": "module",
   "main": "index.js",
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./tui": "./tui.tsx"
   },
   "files": [
     "index.js",
+    "tui.tsx",
+    ".opencode-plugin/src/",
+    ".opencode-plugin/tui.tsx",
     "skills/",
     "agents/",
     "dist/",
