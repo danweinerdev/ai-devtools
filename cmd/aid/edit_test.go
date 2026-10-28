@@ -38,10 +38,10 @@ func TestEditUpdateTask(t *testing.T) {
 	addTask(r, "a")
 	addTask(r, "b", "a")
 
-	out := r.ok("update-task", "b", "--title", "renamed", "--check", "go vet ./b", "--check", "go test ./b, -run X")
+	out := r.ok("update-task", "b", "--title", "renamed", "--check", "true", "--check", "go test ./b, -run X")
 	contains(t, out, "updated b: title, check")
 	var got shownTask
-	if err := json.Unmarshal([]byte(r.ok("update-task", "b", "--result", "it works", "--json")), &got); err != nil {
+	if err := json.Unmarshal([]byte(r.ok("update-task", "b", "--result", "it works", "--reason", "clearer", "--json")), &got); err != nil {
 		t.Fatal(err)
 	}
 	if got.Title != "renamed" || got.Done.Result != "it works" || len(got.Done.Checks) != 2 ||
@@ -81,7 +81,10 @@ func TestEditUpdateTaskRefusedUnderALiveClaim(t *testing.T) {
 	contains(t, r.refused("complete-task", "a"), "a check failed")
 
 	r.ok("release-task", "a")
-	r.ok("update-task", "a", "--check", "true")
+	contains(t, r.refused("update-task", "a", "--check", "true"), "removes or changes the check(s) `false`")
+	out := r.ok("update-task", "a", "--check", "true", "--reason", "the probe")
+	contains(t, out, "weakened its definition of done; recorded in its history: the probe")
+	contains(t, r.ok("show", "a"), "weakened by oracle: the probe")
 }
 
 func TestEditSplitTask(t *testing.T) {

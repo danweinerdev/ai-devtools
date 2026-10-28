@@ -6,8 +6,8 @@ export function fakeContext({ catalog = [], existingAgents = {}, location = { di
   const agents = new Map(Object.entries(existingAgents).map(([id, value]) => [id, { id, permissions: [], ...value }]))
   const skills = new Map()
   const models = new Map(catalog.map((model) => [`${model.providerID}/${model.id}`, model]))
-  const hooks = { session: {}, tool: {} }
-  const state = { defaultAgent: undefined, defaultModel: undefined, reloads: 0, agentTransforms: [] }
+  const hooks = { session: {}, tool: {}, permission: {} }
+  const state = { defaultAgent: undefined, defaultModel: undefined, reloads: 0, agentTransforms: [], asked: [], reply: "reject" }
   const events = []
   let push
 
@@ -60,6 +60,19 @@ export function fakeContext({ catalog = [], existingAgents = {}, location = { di
     },
     session: { hook: async (name, fn) => (hooks.session[name] = fn) },
     tool: { hook: async (name, fn) => (hooks.tool[name] = fn) },
+    // Permission requests as OpenCode 2.2.0 runs them: the evaluate hook may
+    // change the effect; "ask" waits for `reply` (tests set state.reply).
+    permission: {
+      hook: async (name, fn) => (hooks.permission[name] = fn),
+      assert: async (request) => {
+        const event = { ...request, effect: "allow" }
+        await hooks.permission.evaluate?.(event)
+        state.asked.push({ ...request, effect: event.effect, message: event.message })
+        if (event.effect === "deny") throw Object.assign(new Error("denied"), { name: "Permission.DeniedError" })
+        if (event.effect !== "ask") return
+        if (state.reply !== "once") throw Object.assign(new Error(""), { name: "Permission.DeclinedError" })
+      },
+    },
     event: {
       subscribe: ({ signal } = {}) => ({
         async *[Symbol.asyncIterator]() {

@@ -44,8 +44,36 @@ function parseJSON(text) {
 /** The guard's verdict from aid's output, or undefined when there isn't one. */
 export function guardVerdict(result) {
   const verdict = parseJSON(result.stdout)
-  if (!object(verdict) || (verdict.decision !== "allow" && verdict.decision !== "deny")) return undefined
+  if (!object(verdict) || !["allow", "ask", "deny"].includes(verdict.decision)) return undefined
   return verdict
+}
+
+/** The permission action the definition-of-done gate asks about. */
+export const DONE_GATE_ACTION = "aid.definition-of-done"
+
+/**
+ * Put an "ask" verdict to the user as an OpenCode permission request and wait
+ * for the reply. The plugin's evaluate hook forces this action to ask, so a
+ * saved "always" never approves a later weakening. A rejection, or an
+ * OpenCode that can't ask, blocks the call.
+ */
+async function askUser(ctx, event, verdict) {
+  const reason = verdict.reason || "aid asks before this call"
+  if (typeof ctx.permission?.assert !== "function") {
+    throw new Error(`${reason} This OpenCode can't ask for approval, so the call is blocked; if you approve, run it yourself.`)
+  }
+  try {
+    await ctx.permission.assert({
+      sessionID: event.sessionID,
+      agent: event.agent,
+      action: DONE_GATE_ACTION,
+      resources: [verdict.task || "unknown"],
+      metadata: { reason, tool: event.tool },
+    })
+  } catch (error) {
+    if (/Declined|Rejected/i.test(String(error?.name ?? error?._tag ?? ""))) throw new Error(`The user declined: ${reason}`)
+    throw new Error(`${reason} Asking for approval failed (${error?.message || error}), so the call is blocked.`)
+  }
 }
 
 export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs = 10_000, log = (line) => console.error(line) } = {}) {
@@ -230,9 +258,17 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
     await ctx.session.hook("title", (event) => applyReasoningEffort(event, TITLE_ROLE))
 
     // Every tool call goes to aid's guard first. A deny blocks the call with
-    // aid's reason; aid missing, failing or timing out lets it through (the
-    // guards fail open) and is reported once.
+    // aid's reason, and an ask waits for the user's approval (askUser); aid
+    // missing, failing or timing out lets it through (the guards fail open)
+    // and is reported once.
     let reportedGuardFailure = false
+    if (typeof ctx.permission?.hook === "function") {
+      await ctx.permission.hook("evaluate", (event) => {
+        if (event.action !== DONE_GATE_ACTION) return
+        event.effect = "ask"
+        if (typeof event.metadata?.reason === "string") event.message = event.metadata.reason
+      })
+    }
     await ctx.tool.hook("execute.before", async (event) => {
       const input = JSON.stringify({
         tool: event.tool,
@@ -246,6 +282,7 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
       const result = await aid(["guard", "opencode-tool"], { input, cwd, timeoutMs: guardTimeoutMs })
       const verdict = guardVerdict(result)
       if (verdict?.decision === "deny") throw new Error(verdict.reason || `aid guard denied ${event.tool}`)
+      if (verdict?.decision === "ask") return askUser(ctx, event, verdict)
       if (verdict === undefined && !reportedGuardFailure) {
         reportedGuardFailure = true
         log(`${TAG} guards are off until aid answers: ${result.ok ? "aid guard printed no verdict" : failure(result)}`)

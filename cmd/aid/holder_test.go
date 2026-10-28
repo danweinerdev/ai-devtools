@@ -109,3 +109,39 @@ func TestFinishRefusesAnEmptyGraph(t *testing.T) {
 	r.ok("drop-task", "a", "--reason", "not needed")
 	contains(t, r.ok("finish"), "finished: 0 done, 1 dropped")
 }
+
+// finish lists every task whose definition of done was weakened, with its
+// history, so the change reaches whoever reviews the work.
+func TestFinishListsWeakenedTasks(t *testing.T) {
+	r := newRepo(t)
+	r.ok("init", "Feature")
+	addTask(r, "a")
+	addTask(r, "b")
+	r.ok("update-task", "a", "--check", "go vet ./a", "--holder", "aid-mechanic", "--reason", "true proved nothing")
+	r.ok("update-task", "b", "--check", "true", "--check", "echo ok")
+	r.ok("drop-task", "a", "--reason", "x")
+	r.ok("claim-task", "b")
+	r.ok("complete-task", "b")
+	out := r.ok("finish")
+	contains(t, out, "1 task(s) had their definition of done weakened; review each:\n  a\n")
+	contains(t, out, "weakened by aid-mechanic: true proved nothing\n      checks: true → go vet ./a")
+	if strings.Contains(out, "  b\n") {
+		t.Fatalf("b only gained a check:\n%s", out)
+	}
+	var got struct {
+		Weakened []struct {
+			ID      string `json:"id"`
+			History []struct {
+				By         string   `json:"by"`
+				ChecksFrom []string `json:"checks_from"`
+			} `json:"history"`
+		} `json:"weakened"`
+	}
+	if err := json.Unmarshal([]byte(r.ok("finish", "--json")), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Weakened) != 1 || got.Weakened[0].ID != "a" || got.Weakened[0].History[0].By != "aid-mechanic" ||
+		got.Weakened[0].History[0].ChecksFrom[0] != "true" {
+		t.Fatalf("finish --json: %+v", got)
+	}
+}

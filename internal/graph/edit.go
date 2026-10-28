@@ -8,16 +8,61 @@ import (
 )
 
 // Edit is the authored fields an update changes. A nil field is left alone;
-// a non-nil list replaces the whole list. Status is never editable here.
+// a non-nil list replaces the whole list. Status is never editable here. By
+// and Reason are recorded in the task's history when the edit weakens its
+// definition of done; they change nothing themselves.
 type Edit struct {
 	Title     *string
 	Needs     *[]string
 	Footprint *[]string
 	Result    *string
 	Checks    *[]string
+	By        string
+	Reason    string
 }
 
-// Empty reports an edit that changes nothing.
+// Weakening is how an edit weakens a task's definition of done: the checks
+// it removes or changes, and whether it changes the result. A check list
+// that keeps every existing check only adds proof, so it isn't one.
+type Weakening struct {
+	Removed []string
+	Result  bool
+}
+
+// Weakens reports whether w weakens anything.
+func (w Weakening) Weakens() bool { return len(w.Removed) > 0 || w.Result }
+
+// String says what w weakens, for refusals and the guard's question.
+func (w Weakening) String() string {
+	var parts []string
+	if len(w.Removed) > 0 {
+		quoted := make([]string, len(w.Removed))
+		for i, c := range w.Removed {
+			quoted[i] = "`" + c + "`"
+		}
+		parts = append(parts, "removes or changes the check(s) "+strings.Join(quoted, ", "))
+	}
+	if w.Result {
+		parts = append(parts, "changes the result")
+	}
+	return strings.Join(parts, " and ")
+}
+
+// WeakeningOf is how e would weaken t's definition of done.
+func WeakeningOf(t Task, e Edit) Weakening {
+	var w Weakening
+	if e.Checks != nil {
+		for _, c := range t.Done.Checks {
+			if !slices.Contains(*e.Checks, c) {
+				w.Removed = append(w.Removed, c)
+			}
+		}
+	}
+	w.Result = e.Result != nil && *e.Result != t.Done.Result
+	return w
+}
+
+// Empty reports an edit that changes nothing; By and Reason don't count.
 func (e Edit) Empty() bool {
 	return e.Title == nil && e.Needs == nil && e.Footprint == nil && e.Result == nil && e.Checks == nil
 }
@@ -25,7 +70,9 @@ func (e Edit) Empty() bool {
 // UpdateTask applies e to the task with id and returns the updated task. A
 // dropped task is a record and can't be edited, and a task under a live claim
 // can't be edited by anyone, its holder included, so the definition of done a
-// holder is working to never changes under it. The edit is made on a copy
+// holder is working to never changes under it. An edit that weakens the
+// definition of done (see WeakeningOf) needs a reason and is recorded in the
+// task's history, whatever the task's status. The edit is made on a copy
 // and adopted only if the whole graph still validates (no cycle, no done or
 // in-progress task gaining a need that isn't done), so every refusal leaves g as it
 // was.
@@ -43,8 +90,23 @@ func (g *Graph) UpdateTask(id string, e Edit, now time.Time) (Task, error) {
 	if e.Empty() {
 		return Task{}, fmt.Errorf("nothing to update: pass at least one of --title, --needs, --footprint, --result, --check")
 	}
+	weak := WeakeningOf(g.Tasks[i], e)
+	if weak.Weakens() && strings.TrimSpace(e.Reason) == "" {
+		return Task{}, fmt.Errorf("updating %q %s, which weakens its definition of done; say why with --reason "+
+			"(it's recorded in the task's history). Adding checks while keeping every existing one needs no reason", id, weak)
+	}
 	next := &Graph{Version: g.Version, Tasks: cloneTasks(g.Tasks)}
 	t := &next.Tasks[i]
+	if weak.Weakens() {
+		c := Change{At: now.UTC(), By: e.By, Reason: strings.TrimSpace(e.Reason)}
+		if len(weak.Removed) > 0 {
+			c.ChecksFrom, c.ChecksTo = slices.Clone(t.Done.Checks), slices.Clone(*e.Checks)
+		}
+		if weak.Result {
+			c.ResultFrom, c.ResultTo = t.Done.Result, *e.Result
+		}
+		t.History = append(t.History, c)
+	}
 	if e.Title != nil {
 		t.Title = *e.Title
 	}

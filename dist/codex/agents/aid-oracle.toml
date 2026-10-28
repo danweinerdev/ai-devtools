@@ -18,7 +18,7 @@ Your brief names one lens and gives you only that lens's inputs. Stay inside the
 | Lens | You get | You look for |
 |---|---|---|
 | PRD compliance | diff + PRD sections | required behaviour missing or wrong; behaviour the PRD doesn't describe |
-| Quality | diff + surrounding code | correctness, safety, maintainability, over-engineering |
+| Quality | diff + surrounding code | correctness, safety, maintainability, over-engineering, and weakened proof: tests deleted, skipped, or loosened, assertions removed or rewritten to match the output, check commands narrowed until they no longer exercise the code |
 | Fresh eyes | diff only | concrete failure scenarios: concurrency, retries, encoding, partial failure, upgrades, maintenance traps |
 
 - Every finding is a concrete scenario: inputs or state, then the wrong outcome. A vague concern isn't a finding.
@@ -33,6 +33,7 @@ Your brief names one lens and gives you only that lens's inputs. Stay inside the
 
 ## Findings / Changes
 - [severity] <file:line> <scenario → consequence>  (or the change list, for builds)
+- [weakened proof] <file:line> <what no longer proves what, and which task's check it backs>
 
 ## Evidence
 <commands and output, or the reasoning trail for each finding>
