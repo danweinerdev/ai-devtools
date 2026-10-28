@@ -26,9 +26,9 @@ func wantEditErr(t *testing.T, err error, want string) {
 }
 
 func TestUpdateChangesOnlyGivenFields(t *testing.T) {
-	g := graphOf(task("a", Done), task("b", InProgress))
+	g := graphOf(task("a", Done), task("b", Todo))
 	before := g.Tasks[1]
-	got, err := g.UpdateTask("b", Edit{Title: strp("new title"), Checks: listp("go test ./x", "go vet ./x")})
+	got, err := g.UpdateTask("b", Edit{Title: strp("new title"), Checks: listp("go test ./x", "go vet ./x")}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestUpdateChangesOnlyGivenFields(t *testing.T) {
 	if g.Tasks[1].Title != "new title" {
 		t.Fatal("graph not updated in place")
 	}
-	if _, err := g.UpdateTask("a", Edit{Needs: listp(), Footprint: listp("cmd/aid/"), Result: strp("r")}); err != nil {
+	if _, err := g.UpdateTask("a", Edit{Needs: listp(), Footprint: listp("cmd/aid/"), Result: strp("r")}, now); err != nil {
 		t.Fatal(err)
 	}
 	mustValid(t, g)
@@ -50,23 +50,49 @@ func TestUpdateChangesOnlyGivenFields(t *testing.T) {
 
 func TestUpdateRefusals(t *testing.T) {
 	g := graphOf(task("a", Todo), task("d", Dropped))
-	_, err := g.UpdateTask("d", Edit{Title: strp("x")})
+	_, err := g.UpdateTask("d", Edit{Title: strp("x")}, now)
 	wantEditErr(t, err, "is dropped")
-	_, err = g.UpdateTask("zz", Edit{Title: strp("x")})
+	_, err = g.UpdateTask("zz", Edit{Title: strp("x")}, now)
 	wantEditErr(t, err, `no task "zz"`)
-	_, err = g.UpdateTask("a", Edit{})
+	_, err = g.UpdateTask("a", Edit{}, now)
 	wantEditErr(t, err, "nothing to update")
+}
+
+// A live claim freezes the task for everyone, its holder included, so the
+// definition of done can't be swapped under the holder (or by it). Once the
+// lease lapses the task is editable again.
+func TestUpdateRefusesALiveClaim(t *testing.T) {
+	edits := map[string]Edit{
+		"title":     {Title: strp("x")},
+		"needs":     {Needs: listp()},
+		"footprint": {Footprint: listp("x")},
+		"result":    {Result: strp("x")},
+		"checks":    {Checks: listp("true")},
+	}
+	for name, e := range edits {
+		t.Run(name, func(t *testing.T) {
+			g := graphOf(task("a", InProgress))
+			before := cloneTasks(g.Tasks)
+			_, err := g.UpdateTask("a", e, now)
+			wantEditErr(t, err, `task "a" is held by "aid-mechanic" until 2026-10-27T13:00:00Z; release it first, then edit it`)
+			unchanged(t, g, before)
+		})
+	}
+	g := graphOf(task("a", InProgress))
+	if _, err := g.UpdateTask("a", Edit{Title: strp("x")}, now.Add(2*time.Hour)); err != nil {
+		t.Fatalf("a lapsed claim should be editable: %v", err)
+	}
 }
 
 func TestUpdateStructuralBreakageCaughtByValidate(t *testing.T) {
 	g := graphOf(task("a", Todo), task("b", Todo, "a"))
-	_, err := g.UpdateTask("a", Edit{Needs: listp("b")})
+	_, err := g.UpdateTask("a", Edit{Needs: listp("b")}, now)
 	wantEditErr(t, err, "cycle: a → b → a")
 	if len(g.Tasks[0].Needs) != 0 {
 		t.Fatal("a refused update changed the graph")
 	}
 	g = graphOf(task("a", Todo), task("b", Done))
-	_, err = g.UpdateTask("b", Edit{Needs: listp("a")})
+	_, err = g.UpdateTask("b", Edit{Needs: listp("a")}, now)
 	wantEditErr(t, err, "is done but needs `a`")
 }
 

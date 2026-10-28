@@ -19,7 +19,8 @@ func updateTaskCmd(a *app) *cobra.Command {
 		Use:   "update-task <id>",
 		Short: "Change a task's title, needs, footprint, result, or checks",
 		Long: "Change a task's authored fields. Only the flags given change; a list flag replaces the whole list. " +
-			"Status never changes here, and a dropped task can't be edited.",
+			"Status never changes here. A dropped task can't be edited, and neither can a task under a live claim, " +
+			"its holder included: release it first.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var e graph.Edit
@@ -57,7 +58,7 @@ func updateTaskCmd(a *app) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if updated, err = g.UpdateTask(args[0], e); err != nil {
+				if updated, err = g.UpdateTask(args[0], e, now); err != nil {
 					return err
 				}
 				return saveGraph(tx, g)

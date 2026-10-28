@@ -54,7 +54,7 @@ A task's **effective** status is its status, except that an `in-progress` task w
 |---|---|
 | `init <name>` | creates `.aid/<name>/` with an empty graph and state record, atomically; refused if it exists |
 | `add-task --title --footprint --result --check [--id] [--needs]` | adds a `todo` task. Its needs must already exist, so add in dependency order. Without `--id` a UUIDv7 is generated; a duplicate ID is refused |
-| `update-task <id> [--title] [--needs] [--footprint] [--result] [--check]` | changes only the flags given; a list flag replaces the whole list (`--needs=` clears it). Never changes status; a dropped task can't be edited |
+| `update-task <id> [--title] [--needs] [--footprint] [--result] [--check]` | changes only the flags given; a list flag replaces the whole list (`--needs=` clears it). Never changes status; a dropped task can't be edited, and neither can a task under a live claim, its holder included |
 | `split-task <id> --into <ids>` | the parts are added first with `add-task`. They inherit the task's needs, every task that needed it now needs all the parts, and it becomes `dropped` with the reason `split into …`, in one write. Refused on a `done` or `dropped` task, a live claim, or a part the task itself needs (directly or through a chain) |
 | `claim-task <id> [--holder <who>] [--lease 2h]` | marks a ready task `in-progress` for the holder until the lease lapses. One holder at a time; the same holder claiming again renews the lease |
 | `release-task <id> [--holder <who>]` | an `in-progress` task back to `todo`, claim cleared; only its holder may release a live claim. On a `blocked` task it unblocks it back to `todo` |
@@ -93,7 +93,7 @@ Every refusal exits 1, writes the message to stderr, and with `--json` also prin
 
 **When the plan changes.** No plan survives implementation. Change the graph, not the breakdown:
 - a task turns out bigger than planned: add the parts, then `split-task`;
-- its scope, needs, or checks were wrong: `update-task`;
+- its scope, needs, or checks were wrong: `update-task` (a held task is released first, so its definition of done never changes under its holder);
 - it no longer applies: `drop-task`.
 
 **Dropping a task.** `drop-task` is refused while a claim is live, and while any `todo`, `in-progress` or `blocked` task still needs it. The refusal lists only the direct dependents, the ones whose needs must move, each with its status and whether it blocks, plus a count of the tasks with work ahead that need them in turn.

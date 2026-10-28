@@ -139,9 +139,11 @@ func TestDoingTaskNeverGainsAnUnfinishedNeed(t *testing.T) {
 		unchanged(t, g, before)
 	})
 	t.Run("update-task", func(t *testing.T) {
+		// A live claim refuses every edit; a lapsed one is still in-progress
+		// on disk, so validation must catch the rewiring.
 		g := graphOf(task("x", InProgress), task("y", Todo))
 		before := cloneTasks(g.Tasks)
-		_, err := g.UpdateTask("x", Edit{Needs: listp("y")})
+		_, err := g.UpdateTask("x", Edit{Needs: listp("y")}, now.Add(2*time.Hour))
 		wantEditErr(t, err, "task `x`: is in-progress but needs `y`, which is todo")
 		unchanged(t, g, before)
 	})
@@ -186,7 +188,7 @@ func TestUpdateRefusesStructuralBreakage(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			g := base()
 			before := cloneTasks(g.Tasks)
-			_, err := g.UpdateTask(c.id, Edit{Needs: &c.needs})
+			_, err := g.UpdateTask(c.id, Edit{Needs: &c.needs}, now)
 			wantEditErr(t, err, c.want)
 			unchanged(t, g, before)
 		})
