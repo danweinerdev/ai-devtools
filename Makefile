@@ -59,6 +59,11 @@ test-release:
 # (no cgo), stripped of symbols and DWARF, and without local paths. Go has no
 # LTO switch: its linker already sees the whole program and drops dead code.
 # Override the set with RELEASE_PLATFORMS="linux/amd64 darwin/arm64".
+# aid reports the plugin version from package.json (`aid version`); bump-version.py
+# keeps it in step with the other two manifests.
+AID_VERSION := $(shell sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' package.json | head -n 1)
+VERSION_LDFLAG := -X main.version=$(AID_VERSION)
+
 RELEASE_PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64
 
 release:
@@ -67,13 +72,13 @@ release:
 		os=$${p%/*}; arch=$${p#*/}; ext=; \
 		if [ "$$os" = windows ]; then ext=.exe; fi; \
 		out=build/$$os-$$arch/aid$$ext; \
-		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -trimpath -ldflags='-s -w' -o $$out ./cmd/aid || exit 1; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -trimpath -ldflags='-s -w $(VERSION_LDFLAG)' -o $$out ./cmd/aid || exit 1; \
 		echo "$$out"; \
 	done
 
 # Install the aid tool (task graph and state record) into GOBIN, or GOPATH/bin.
 install-aid:
-	@go install ./cmd/aid
+	@go install -ldflags='$(VERSION_LDFLAG)' ./cmd/aid
 
 # Symlink generated agents into Codex's agent directory (skills need no install;
 # the OpenCode plugin registers its agents itself).

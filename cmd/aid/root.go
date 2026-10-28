@@ -46,6 +46,8 @@ func newRoot(a *app) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	root.Version = currentVersion().String()
+	root.SetVersionTemplate("{{.Version}}\n")
 	root.SetOut(a.out)
 	root.SetErr(a.err)
 	root.PersistentFlags().StringVar(&a.work, "work", "", "the work to act on: .aid/<name>/ (optional when only one exists)")
