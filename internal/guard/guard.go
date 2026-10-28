@@ -29,12 +29,31 @@ type Env struct {
 	Getwd   func() (string, error)
 	TempDir string // where the inline budget keeps its counters
 	Home    string // for expanding ~ in paths
+	// Harness picks the config file the guards read and the wording of their
+	// messages; empty is Claude Code.
+	Harness Harness
 }
 
 // OSEnv is the real environment.
 func OSEnv() Env {
 	home, _ := os.UserHomeDir()
 	return Env{Getenv: os.Getenv, Getwd: os.Getwd, TempDir: os.TempDir(), Home: home}
+}
+
+// loadConfig reads the config of env's harness.
+func loadConfig(cwd string, env Env) (Config, error) {
+	if env.Harness == OpenCode {
+		return LoadOpenCode(cwd, env)
+	}
+	return Load(cwd)
+}
+
+// spawnCall names a delegation call in env's harness, for messages.
+func spawnCall(env Env) string {
+	if env.Harness == OpenCode {
+		return "subagent"
+	}
+	return "Agent"
 }
 
 var agentTools = []string{"Agent", "Task"}
@@ -157,7 +176,7 @@ func modelOverride(p *Object, env Env) (Decision, error) {
 	if name == "" || name == orchestrator || slices.Contains(genericAgents, strings.ToLower(name)) {
 		return Decision{}, nil
 	}
-	cfg, err := Load(cwdOf(p, env))
+	cfg, err := loadConfig(cwdOf(p, env), env)
 	if err != nil {
 		return Decision{}, err
 	}
@@ -191,7 +210,7 @@ func sensitive(p *Object, env Env) (Decision, error) {
 	if p == nil || !isAgentTool(p) {
 		return Decision{}, nil
 	}
-	cfg, err := Load(cwdOf(p, env))
+	cfg, err := loadConfig(cwdOf(p, env), env)
 	if err != nil {
 		return Decision{}, err
 	}
@@ -221,8 +240,8 @@ func sensitive(p *Object, env Env) (Decision, error) {
 				who = "no agent"
 			}
 			return deny(fmt.Sprintf("sensitivity rule '%s' matched content in this spawn and '%s' is not in "+
-				"its allow_agents. Handle this data inline in the main loop. (Rules live in .claude/aid.json.)",
-				rule.Name, who)), nil
+				"its allow_agents. Handle this data inline in the main loop. (Rules live in %s.)",
+				rule.Name, who, cfg.Path)), nil
 		}
 	}
 	return Decision{}, nil
