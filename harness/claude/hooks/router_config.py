@@ -163,7 +163,7 @@ def read_payload():
     """The hook payload as a dict, or None when stdin is unusable."""
     try:
         payload = json.load(sys.stdin)
-    except Exception:
+    except (OSError, ValueError):
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -183,7 +183,7 @@ def run(main):
     except ConfigError as exc:
         print(f"aid-guards: {exc.message()}", file=sys.stderr)
         return 2
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - a guard's own bug fails open, never wedging a session
         print(f"aid-guards: {os.path.basename(sys.argv[0])} errored "
               f"({exc.__class__.__name__}: {exc}); allowing (fail open).",
               file=sys.stderr)

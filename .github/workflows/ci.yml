@@ -48,6 +48,26 @@ jobs:
         if: success() || failure()
         run: go vet ./...
 
+      # Results depend on build tags, so it runs on every OS.
+      - name: staticcheck
+        if: success() || failure()
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+
+      # OS-independent lints run once, on Linux.
+      - name: gofmt
+        if: runner.os == 'Linux' && (success() || failure())
+        run: test -z "$(gofmt -l cmd internal tools)" || { gofmt -l cmd internal tools; exit 1; }
+
+      - name: actionlint
+        if: runner.os == 'Linux' && (success() || failure())
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
+      - name: ruff
+        if: runner.os == 'Linux' && (success() || failure())
+        run: |
+          python -m pip install --quiet ruff==0.17.3
+          ruff check harness
+
       - name: go test (race detector)
         if: success() || failure()
         run: go test -race ./...

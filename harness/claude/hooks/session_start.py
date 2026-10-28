@@ -9,7 +9,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import router_config as rc  # noqa: E402
+import router_config as rc
 
 POLICY = """\
 ## Routing policy (aid)
@@ -37,10 +37,11 @@ An optional .claude/aid.json can override the model per agent; the guards apply 
 
 def skill_body(root):
     try:
-        text = open(os.path.join(root, "skills", "aid-orchestrate", "SKILL.md")).read()
+        with open(os.path.join(root, "skills", "aid-orchestrate", "SKILL.md")) as f:
+            text = f.read()
     except OSError:
         return ""
-    return re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.S).strip()
+    return re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.DOTALL).strip()
 
 
 def main():
@@ -63,7 +64,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - session start never blocks the session
         print(f"aid-guards: session_start errored ({exc.__class__.__name__}); "
               "continuing.", file=sys.stderr)
     sys.exit(0)
