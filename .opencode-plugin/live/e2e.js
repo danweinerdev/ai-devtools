@@ -284,13 +284,17 @@ export async function isolatedServerEnv(root, env = process.env) {
  * package) means the suite isn't testing this checkout.
  */
 export function pluginFromCheckout(plugins, repo, canonical = (p) => { try { return realpathSync.native(p) } catch { return resolve(p) } }) {
-  const want = canonical(repo)
+  // Normalised alike on both sides, so separators and drive letters can't
+  // make the same path compare unequal (Windows mixes / and \\).
+  const norm = (p) => resolve(canonical(p))
+  const want = norm(repo)
+  const accepted = [want, join(want, "index.js")]
   const isOurs = (p) => p?.id === PLUGIN_ID || (p?.source?.type === "local" && typeof p.source.path === "string" &&
-    [want, join(want, "index.js")].includes(canonical(p.source.path)))
+    accepted.includes(norm(p.source.path)))
   const ours = (Array.isArray(plugins) ? plugins : []).filter(isOurs)
   const paths = ours.map((p) => (p?.source?.type === "local" ? p.source.path : p?.source?.type ?? "?"))
   const fromCheckout = ours.filter((p) => p?.source?.type === "local" && typeof p.source.path === "string" &&
-    [want, join(want, "index.js")].includes(canonical(p.source.path)))
+    accepted.includes(norm(p.source.path)))
   return { ok: ours.length === 1 && fromCheckout.length === 1, paths }
 }
 
