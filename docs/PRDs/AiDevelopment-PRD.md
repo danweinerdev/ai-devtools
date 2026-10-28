@@ -154,7 +154,7 @@ One source, three harnesses, and no prose transformation.
 - **Globally unique names:** skills and agents carry the `aid-` prefix everywhere, because Codex and OpenCode share one global namespace. In Claude Code they also appear under the plugin namespace (`ai-development:aid-think`).
 - **Agents generated from one definition:** Claude Code reads `agents/*.md` directly. The build emits OpenCode markdown agents (`mode: subagent`, or `primary` for the orchestrator, which is generated from the `aid-orchestrate` skill; read-only maps to `permission.edit: deny`) and Codex role TOML (`developer_instructions`; read-only maps to `sandbox_mode = "read-only"`).
 - **Drift gate:** `make check` fails when frontmatter is invalid, when an `aid-*` reference names a skill or agent that doesn't exist, or when generated files differ from a fresh build.
-- **Models are native to each harness:** Claude agents carry `model:` in frontmatter, OpenCode models come from the OpenCode router config keyed by agent name, and Codex agents inherit the session model.
+- **Models are native to each harness:** Claude agents carry `model:` in frontmatter, OpenCode agents take their model from `aid.json`'s `agents` map (inheriting the session model when unmapped), and Codex agents inherit the session model.
 
 ### Orchestration
 
@@ -201,7 +201,7 @@ Always on. The guardrails make the roster the only way work gets delegated.
 
 ### Guardrails (OpenCode)
 
-The same intent, implemented natively in the OpenCode plugin, with guards through the V2 hook API. The agent-to-model mapping stays in `model-router.json`: named model slots, plus an `agents` map from agent name to slot. *(Planned. The current router targets the V1 API.)*
+The same intent and the same Go implementation. The plugin hooks each tool call (`ctx.tool.hook`) and passes it to `aid guard opencode-tool`. A denial blocks the call with its reason. If `aid` is missing or fails, the plugin logs it and allows the call (fail open). Configuration is `aid.json`: a project's `.opencode/aid.json`, else the global `~/.config/opencode/aid.json`. The first file found wins, and an invalid one is a loud error. It is strict like `.claude/aid.json`, with `guards` and `sensitive` as on Claude, plus model routing: `profiles` (named models, `provider/model` with an optional `#variant` and `reasoning_effort`) and an `agents` map from agent name to profile. An agent not in the map inherits the session model. `aid` validates and resolves the file (`aid config --harness opencode`), so the plugin never parses it. The routing policy reaches the orchestrator's context from `aid guard policy`.
 
 ## Interfaces
 
