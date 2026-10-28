@@ -48,6 +48,8 @@ Route work to the cheapest role that can succeed:
 | aid-creator | first-pass creative work and prototypes |
 | aid-craftsman | refinement of a working first pass into a finished one |
 
+**Checking a PRD against the code: finding is research, judging is review.** aid-explorer maps each described behaviour to the code that implements it (or a search trail where nothing does), with file:line and no verdict. You judge from that map; aid-oracle judges, in its own context, when the check has to be independent: at a completion gate, in the adversarial PRD challenge's grounding lens, or when the user asks. The oracle gets the map and the PRD, never your conclusion.
+
 Project agents (for example, those the project defines in its own agent directory) are first-class targets too. Discover them when the work calls for them. Ones described as reviewers join Review as extra lenses.
 
 Do a lookup or a two-file check yourself, because delegating it costs more than doing it. Delegate when the answer means reading far more than the answer itself, when the work is independent and can run in parallel, or when it needs a context that isn't anchored on yours (review). Never delegate to a generic, unspecialised agent in place of a role: pick the role that fits.

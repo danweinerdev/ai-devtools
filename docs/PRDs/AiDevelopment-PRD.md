@@ -182,6 +182,8 @@ The orchestrator is never a subagent. Claude has no `aid-orchestrator` agent fil
 | `aid-creator` | make | `sonnet` | First-pass creative work, clearly marked with its soft spots. |
 | `aid-craftsman` | make | `opus` | Complex refinement of a working first pass into a finished one. |
 
+Checking a PRD against the code splits along that line: **finding is research, judging is review**. `aid-explorer` maps each behaviour the PRD describes to the code that implements it, or records a search trail where nothing does, with file:line evidence and no verdict. The judgement (which mismatches matter, and whether the PRD or the code should move) is made by the orchestrator from that map, or by `aid-oracle` in its own context when it has to be independent: at a completion gate, in the adversarial PRD challenge's grounding lens, or when the user asks for an independent check. The oracle gets the explorer's map and the PRD, never the orchestrator's conclusion.
+
 Every specialist report includes a `## PRD changes proposed` section, which is how R2 ("whoever finds an inconsistency proposes the fix") works across the subagent boundary.
 
 ### Guardrails (Claude Code)
