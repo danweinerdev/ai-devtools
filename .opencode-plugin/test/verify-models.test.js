@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { SEVERITY, compareModels, distinctFromDefault, globalMark, inspectSubagentCalls, mark, measured, modelTuple, primarySessionEvidence, statusMax, sameModel, summarize } from "../live/verify-models.js"
+import { SEVERITY, compareModels, distinctFromDefault, formatTiming, globalMark, inspectSubagentCalls, mark, measured, modelTuple, pickParentModel, primarySessionEvidence, statusMax, sameModel, summarize, timingBreakdown } from "../live/verify-models.js"
 
 const expected = { providerID: "openai", modelID: "gpt-6-luna" }
 const observed = { providerID: "openai", id: "gpt-6-luna" }
@@ -248,4 +248,69 @@ test("e2e sharing a model with another agent still passes; only the parent's own
   // An unknown parent model can't make a row indistinct.
   assert.equal(distinctFromDefault(sol, undefined), null)
   assert.equal(sameModel(sol, { providerID: "openai", id: "gpt-6.1-sol", variant: "medium" }), true)
+})
+
+// aid config's resolved profiles, shaped like the user's.
+const PROFILES = {
+  orchestration: { model: "openai/gpt-6-astra#medium", provider: "openai", id: "gpt-6-astra", variant: "medium" },
+  "gpt-6-astra": { model: "openai/gpt-6-astra#medium", provider: "openai", id: "gpt-6-astra", variant: "medium" },
+  "gpt-6-luna": { model: "openai/gpt-6-luna#high", provider: "openai", id: "gpt-6-luna", variant: "high" },
+  "gpt-6-astra-high": { model: "openai/gpt-6-astra#high", provider: "openai", id: "gpt-6-astra", variant: "high" },
+  gone: { model: "nowhere/x", provider: "nowhere", id: "x" },
+}
+const CATALOG = [
+  { providerID: "openai", id: "gpt-6-astra", variants: ["medium", "high"] },
+  { providerID: "openai", id: "gpt-6-luna", variants: ["high"] },
+]
+const astra = { providerID: "openai", modelID: "gpt-6-astra", variant: "medium" }
+
+test("parent model: another of the config's models, preferring a different model over a different variant", () => {
+  // The user's live case: aid-creator/aid-oracle on gpt-6-astra:medium, which
+  // the orchestrator also runs on. The parent must be something else.
+  assert.deepEqual(pickParentModel(astra, PROFILES, CATALOG), {
+    profile: "gpt-6-luna", model: { providerID: "openai", modelID: "gpt-6-luna", variant: "high" },
+  })
+  // Deterministic: the same input picks the same parent every time.
+  assert.deepEqual(pickParentModel(astra, PROFILES, CATALOG), pickParentModel(astra, { ...PROFILES }, [...CATALOG]))
+})
+
+test("parent model: a variant-only difference when that's all there is; never the row's own model or an unoffered one", () => {
+  const onlyAstra = { a: PROFILES.orchestration, b: PROFILES["gpt-6-astra-high"], gone: PROFILES.gone }
+  assert.deepEqual(pickParentModel(astra, onlyAstra, CATALOG), {
+    profile: "b", model: { providerID: "openai", modelID: "gpt-6-astra", variant: "high" },
+  })
+  // A variant the catalog doesn't offer is dropped, as the plugin drops it.
+  const pick = pickParentModel(astra, { lean: { provider: "openai", id: "gpt-6-luna", variant: "max" } }, CATALOG)
+  assert.deepEqual(pick.model, { providerID: "openai", modelID: "gpt-6-luna" })
+})
+
+test("parent model: none when the config has no other model", () => {
+  assert.equal(pickParentModel(astra, { a: PROFILES.orchestration, b: PROFILES["gpt-6-astra"], gone: PROFILES.gone }, CATALOG), null)
+  assert.equal(pickParentModel(astra, {}, CATALOG), null)
+  assert.equal(pickParentModel(astra, undefined, undefined), null)
+})
+
+test("timing: parent model time minus the subagent call, child turns, and the rest", () => {
+  const t0 = 1_793_168_000_000
+  const parent = [
+    { type: "user", time: { created: t0 } },
+    // The turn that called the subagent spans the child's run; that overlap isn't parent time.
+    { type: "assistant", time: { created: t0 + 500, completed: t0 + 9_500 },
+      content: [{ type: "tool", name: "subagent", time: { created: t0 + 2_000, ran: t0 + 2_100, completed: t0 + 9_000 } }] },
+    { type: "assistant", time: { created: t0 + 9_600, completed: t0 + 10_600 } },
+  ]
+  const child = [{ type: "assistant", time: { created: t0 + 3_000, completed: t0 + 8_500 } }]
+  const b = timingBreakdown(12_200, parent, child)
+  assert.deepEqual(b, { parent: 9_000 - 6_900 + 1_000, child: 5_500, other: 12_200 - 3_100 - 5_500 })
+  assert.equal(formatTiming(12_200, b), "(12.2s: parent 3.1s, child 5.5s, other 3.6s)")
+})
+
+test("timing: seconds are read as seconds, missing times give no breakdown", () => {
+  const b = timingBreakdown(5_000, [{ type: "assistant", time: { created: 100, completed: 102 } }], [{ type: "assistant", time: { created: 101, completed: 101.5 } }])
+  assert.deepEqual(b, { parent: 2_000, child: 500, other: 2_500 })
+  assert.equal(timingBreakdown(5_000, [{ type: "assistant", time: { created: 100 } }], []), null)
+  assert.equal(timingBreakdown(5_000, undefined, undefined), null)
+  assert.equal(formatTiming(5_000, null), "(5.0s)")
+  // Never negative, whatever the clock skew.
+  assert.equal(timingBreakdown(1_000, [{ type: "assistant", time: { created: 0, completed: 3 } }]).other, 0)
 })

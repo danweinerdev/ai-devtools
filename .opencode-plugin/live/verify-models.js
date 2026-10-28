@@ -143,3 +143,73 @@ export function summarize(results) {
   const state = summary.failed ? "FAIL" : summary.incomplete ? "UNVERIFIED" : "PASS"
   return { state, failed: summary.failed, incomplete: summary.incomplete, exitCode: summary.failed ? 1 : summary.incomplete ? 2 : 0 }
 }
+
+/**
+ * The model a worker row's parent session runs on, so the child's routed
+ * model can be told apart from what it would inherit. Candidates are the
+ * config's profiles (aid's resolved form: {provider, id, variant}) that the
+ * catalog offers, with a variant the catalog lacks dropped as the plugin
+ * would, minus any that equal the row's expected model. A different
+ * provider/model wins over a variant-only difference; ties go by profile name,
+ * so the pick is deterministic. Returns { profile, model } or null when the
+ * config has no other model.
+ */
+export function pickParentModel(expected, profiles, catalog) {
+  const offered = (providerID, modelID) => (Array.isArray(catalog) ? catalog : []).find((entry) => {
+    const tuple = modelTuple(entry)
+    return tuple.valid && tuple.providerID === providerID && tuple.modelID === modelID
+  })
+  const want = modelTuple(expected)
+  const candidates = []
+  for (const profile of Object.keys(profiles ?? {}).sort()) {
+    const p = profiles[profile]
+    if (typeof p?.provider !== "string" || typeof p?.id !== "string") continue
+    const entry = offered(p.provider, p.id)
+    if (!entry) continue
+    const variants = (Array.isArray(entry.variants) ? entry.variants : []).map((v) => (typeof v === "string" ? v : v?.id))
+    const variant = p.variant && variants.includes(p.variant) ? p.variant : undefined
+    const model = { providerID: p.provider, modelID: p.id, ...(variant ? { variant } : {}) }
+    if (sameModel(expected, model)) continue
+    candidates.push({ profile, model, otherModel: want.providerID !== p.provider || want.modelID !== p.id })
+  }
+  const pick = candidates.find((c) => c.otherModel) ?? candidates[0]
+  return pick ? { profile: pick.profile, model: pick.model } : null
+}
+
+// OpenCode stamps times in epoch milliseconds; accept seconds too.
+const ms = (value) => (typeof value === "number" && Number.isFinite(value) ? (value < 1e11 ? value * 1000 : value) : null)
+const interval = (time, start = "created") => {
+  const from = ms(time?.[start] ?? time?.created)
+  const to = ms(time?.completed)
+  return from !== null && to !== null && to >= from ? [from, to] : null
+}
+const overlap = ([a, b], [c, d]) => Math.max(0, Math.min(b, d) - Math.max(a, c))
+
+/**
+ * Where a row's wall time went, from the assistant messages' time
+ * {created, completed} and the subagent tool calls' time {ran, completed}:
+ * parent is the parent session's model time (its assistant turns, minus any
+ * stretch spent inside the subagent call), child is the child session's
+ * assistant turns, other is the rest (server, plugin, aid, polling). Returns
+ * null when no turn carries usable times.
+ */
+export function timingBreakdown(totalMs, parentMessages, childMessages = []) {
+  const assistants = (messages) => (Array.isArray(messages) ? messages : []).filter((m) => m?.type === "assistant")
+  const parentTurns = assistants(parentMessages).map((m) => interval(m.time)).filter(Boolean)
+  const childTurns = assistants(childMessages).map((m) => interval(m.time)).filter(Boolean)
+  if (!parentTurns.length && !childTurns.length) return null
+  const calls = assistants(parentMessages).flatMap((m) => (Array.isArray(m.content) ? m.content : []))
+    .filter((part) => part?.type === "tool" && part?.name === "subagent")
+    .map((part) => interval(part.time, "ran")).filter(Boolean)
+  let parent = 0
+  for (const span of parentTurns) parent += (span[1] - span[0]) - calls.reduce((sum, call) => sum + overlap(span, call), 0)
+  const child = childTurns.reduce((sum, [a, b]) => sum + (b - a), 0)
+  parent = Math.max(0, parent)
+  return { parent, child, other: Math.max(0, totalMs - parent - child) }
+}
+
+export function formatTiming(totalMs, breakdown) {
+  const s = (value) => `${(value / 1000).toFixed(1)}s`
+  if (!breakdown) return `(${s(totalMs)})`
+  return `(${s(totalMs)}: parent ${s(breakdown.parent)}, child ${s(breakdown.child)}, other ${s(breakdown.other)})`
+}

@@ -4,7 +4,8 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { defaultConfig, expectations, judgeGuard, parseArgs, planRows, probeFailure, scratchConfig, serverLog, timedOut, withRowDeadline } from "../live/e2e.js"
+import { defaultConfig, expectations, isolatedGlobalConfig, isolatedServerEnv, judgeGuard, parseArgs, planRows, pluginFromCheckout, probeFailure, probeSessionBody, rowLine, scratchConfig, serverLog, stripJsonComments, timedOut, withRowDeadline } from "../live/e2e.js"
+import { compareModels } from "../live/verify-models.js"
 
 const RESOLVED = {
   profiles: { fast: { model: "acme/fast-1" }, deep: { model: "acme/deep-2#high" }, lead: { model: "acme/lead-3" } },
@@ -138,4 +139,93 @@ test("server log: password redacted, written to a private file, tail filtered by
   assert.match(text, /server password \[redacted\]/)
   assert.match(text, /ses_A stuck/) // the trailing partial line is flushed on close
   if (process.platform !== "win32") assert.equal((await stat(join(dir, "opencode-server.log"))).mode & 0o777, 0o600)
+})
+
+test("the orchestrator expects its profile's variant, as it ran live on OpenCode 2.2.0", () => {
+  // The user's live case: aid-orchestrator → openai/gpt-6-astra#medium; its
+  // primary turns ran on gpt-6-astra:medium.
+  const resolved = { profiles: { lead: { model: "openai/gpt-6-astra#medium" }, fast: { model: "openai/gpt-6-luna#high" } },
+    agents: { "aid-orchestrator": "lead", "aid-explorer": "fast" } }
+  const { rows } = planRows(resolved)
+  assert.deepEqual(expectations(rows, [
+    { providerID: "openai", id: "gpt-6-astra", variants: ["low", "medium", "high"] },
+    { providerID: "openai", id: "gpt-6-luna", variants: ["high"] },
+  ]), [])
+  const orchestrator = rows.find((r) => r.agent === "aid-orchestrator")
+  assert.deepEqual(orchestrator.expect, { providerID: "openai", modelID: "gpt-6-astra", variant: "medium" })
+  const observed = { providerID: "openai", id: "gpt-6-astra", variant: "medium" }
+  assert.deepEqual(compareModels(orchestrator.expect, { parent_assistant_0: observed, parent_assistant_1: observed }), { state: "PASS", codes: [] })
+  // A variant the catalog doesn't offer is still stripped, for the primary too.
+  const { rows: bare } = planRows(resolved)
+  expectations(bare, [{ providerID: "openai", id: "gpt-6-astra", variants: ["low"] }, { providerID: "openai", id: "gpt-6-luna" }])
+  assert.deepEqual(bare.find((r) => r.agent === "aid-orchestrator").expect, { providerID: "openai", modelID: "gpt-6-astra" })
+})
+
+test("a probe's parent session carries the chosen model as OpenCode 2's Model.Ref", () => {
+  assert.deepEqual(probeSessionBody("/r"), { agent: "aid-orchestrator", location: { directory: "/r" } })
+  assert.deepEqual(probeSessionBody("/r", { providerID: "openai", modelID: "gpt-6-luna", variant: "high" }), {
+    agent: "aid-orchestrator", location: { directory: "/r" }, model: { providerID: "openai", id: "gpt-6-luna", variant: "high" },
+  })
+  assert.deepEqual(probeSessionBody("/r", { providerID: "acme", modelID: "x" }).model, { providerID: "acme", id: "x" })
+  assert.equal("model" in probeSessionBody("/r", { providerID: "" }), false)
+})
+
+test("row lines name the parent model and break down the time", () => {
+  const row = { agent: "aid-creator", mode: "subagent", expect: { providerID: "openai", modelID: "gpt-6-astra", variant: "medium" } }
+  const line = rowLine(row, { state: "PASS", codes: [] }, { registry: { providerID: "openai", id: "gpt-6-astra", variant: "medium" } }, 12200, {
+    parentModel: { providerID: "openai", id: "gpt-6-luna", variant: "high" }, timing: { parent: 4100, child: 6000, other: 2100 },
+  })
+  assert.match(line, /parent=openai\/gpt-6-luna:high/)
+  assert.match(line, /\(12\.2s: parent 4\.1s, child 6\.0s, other 2\.1s\)$/)
+  assert.match(rowLine(row, { state: "PASS", codes: [] }, {}, 3000), /\(3\.0s\)$/)
+})
+
+test("jsonc: comments and trailing commas go, strings (URLs) stay", () => {
+  const text = `{
+    // providers
+    "providers": { "p": { "options": { "baseURL": "https://x.example/v1", "note": "a /* not */ b" } }, },
+    /* block */ "plugins": ["/somewhere/clone"],
+  }`
+  assert.deepEqual(JSON.parse(stripJsonComments(text)), {
+    providers: { p: { options: { baseURL: "https://x.example/v1", note: "a /* not */ b" } } }, plugins: ["/somewhere/clone"],
+  })
+  const isolated = isolatedGlobalConfig(text)
+  assert.equal("plugins" in isolated, false)
+  assert.equal(isolated.providers.p.options.baseURL, "https://x.example/v1")
+  assert.throws(() => isolatedGlobalConfig("[1]"), /GLOBAL_OPENCODE_CONFIG_SCHEMA/)
+})
+
+test("the suite's server sees the user's global config without plugins, and nothing else can add one", async () => {
+  const { mkdtemp, readFile, mkdir, writeFile, stat } = await import("node:fs/promises")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+  const user = await mkdtemp(join(tmpdir(), "aid-e2e-user-"))
+  const root = await mkdtemp(join(tmpdir(), "aid-e2e-root-"))
+  await mkdir(join(user, "opencode"), { recursive: true })
+  await writeFile(join(user, "opencode", "opencode.json"), JSON.stringify({ plugins: ["/clone"], providers: { p: { name: "P" } }, model: "p/m" }))
+  const env = await isolatedServerEnv(root, { XDG_CONFIG_HOME: user, OPENCODE_CONFIG: "/elsewhere.json", OPENCODE_CONFIG_DIR: "/elsewhere", KEEP: "1" })
+  assert.equal(env.XDG_CONFIG_HOME, join(root, "xdg-config"))
+  assert.equal(env.OPENCODE_CONFIG, undefined)
+  assert.equal(env.OPENCODE_CONFIG_DIR, undefined)
+  assert.equal(env.KEEP, "1")
+  const copied = JSON.parse(await readFile(join(root, "xdg-config", "opencode", "opencode.json"), "utf8"))
+  assert.deepEqual(copied, { providers: { p: { name: "P" } }, model: "p/m" })
+  if (process.platform !== "win32") assert.equal((await stat(join(root, "xdg-config", "opencode", "opencode.json"))).mode & 0o777, 0o600)
+  // No global config at all: an empty scratch config dir, still isolated.
+  const bare = await mkdtemp(join(tmpdir(), "aid-e2e-root-"))
+  const env2 = await isolatedServerEnv(bare, { XDG_CONFIG_HOME: join(user, "nothing-here") })
+  assert.equal(env2.XDG_CONFIG_HOME, join(bare, "xdg-config"))
+})
+
+test("registration requires exactly one aid plugin, loaded from the checkout", () => {
+  const same = (p) => p
+  const local = (path, id = "ai-development") => ({ id, source: { type: "local", path }, state: { status: "active" } })
+  assert.deepEqual(pluginFromCheckout([local("/repo")], "/repo", same), { ok: true, paths: ["/repo"] })
+  assert.equal(pluginFromCheckout([local("/repo/index.js")], "/repo", same).ok, true)
+  // The user's real case: a clone listed in the global config was loaded instead.
+  assert.deepEqual(pluginFromCheckout([local("/home/u/.local/share/ai-development")], "/repo", same), { ok: false, paths: ["/home/u/.local/share/ai-development"] })
+  assert.equal(pluginFromCheckout([local("/repo"), local("/clone")], "/repo", same).ok, false)
+  assert.equal(pluginFromCheckout([{ id: "ai-development", source: { type: "package", target: "ai-development" } }], "/repo", same).ok, false)
+  assert.equal(pluginFromCheckout([], "/repo", same).ok, false)
+  assert.equal(pluginFromCheckout([local("/other", "someone-else")], "/repo", same).ok, false)
 })
