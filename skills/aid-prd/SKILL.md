@@ -116,7 +116,7 @@ Use these headings in this order and drop the ones that don't apply. Template: [
 
 When asked to check or curate a PRD (see aid-learn), or when a Make step touches code under a PRD's `code:` paths:
 
-1. Read the PRD's relevant sections, then the code they describe.
-2. List each mismatch with evidence (file:line, plus PRD section).
+1. **Find (research, aid-explorer when it's more than a lookup):** read the PRD's relevant sections, then map each described behaviour to the code that implements it, or record the search trail where nothing does. Evidence only (file:line, plus PRD section), no verdict.
+2. **Judge (the orchestrator, or aid-oracle in its own context when it has to be independent: a completion gate, the adversarial PRD challenge, or the user asking):** from that map, list each mismatch that matters. The oracle gets the map and the PRD, never a conclusion.
 3. Classify it as R2 does: PRD follows code, code follows PRD, or open question.
 4. Propose fragments under R1. Turn the "code follows PRD" items into Make work, not PRD edits.
