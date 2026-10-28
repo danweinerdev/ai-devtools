@@ -26,8 +26,9 @@ import (
 //	{"profiles": {"<name>": {"model": "provider/model[#variant]", "reasoning_effort": "high"}},
 //	 "agents": {"<agent>": "<profile>"}, "hide_free_models": true, ...}
 //
-// An agent missing from agents inherits the session model; nothing has a
-// default. A missing file is an empty config (guards use defaults). An invalid
+// An agent missing from agents, or mapped to the reserved name "inherit",
+// uses the session model; nothing has a default. "inherit" lets a config list
+// every agent before choosing their profiles. A missing file is an empty config (guards use defaults). An invalid
 // one fails loudly, even when another file would have been next: the loaders
 // return a *ConfigError, and Run turns that into a deny that says what to fix.
 // Only a bug in a guard's own code fails open.
@@ -49,6 +50,8 @@ var (
 	// The efforts the model router accepts (its REASONING_EFFORTS).
 	efforts     = []string{"none", "minimal", "low", "medium", "high", "xhigh"}
 	profileName = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*$`)
+	// inheritProfile maps an agent to the session model; no profile may use it.
+	inheritProfile = "inherit"
 	// provider/model, the model part free to hold more slashes (gateways such
 	// as openrouter/anthropic/x), with an optional #variant.
 	modelRef = regexp.MustCompile(`^([^/\s#]+)/([^\s#]+)(?:#([^\s#]+))?$`)
@@ -314,6 +317,8 @@ func validateRouting(top *Object, cfg *Config, add func(string, ...any), problem
 				where := "profiles." + name
 				if !profileName.MatchString(name) {
 					add("%s: profile names are lowercase letters, digits, '.' and '-', starting with a letter or digit", where)
+				} else if name == inheritProfile {
+					add("%s: `inherit` is reserved (an agent mapped to it uses the session model); name the profile something else", where)
 				}
 				po, ok := ps.Values[name].(*Object)
 				if !ok {
@@ -356,7 +361,9 @@ func validateRouting(top *Object, cfg *Config, add func(string, ...any), problem
 				case strings.TrimSpace(agent) == "" || strings.ContainsAny(agent, " \t\n"):
 					add("agents: `%s` is not an agent name", agent)
 				case !isStr || profile == "":
-					add("agents.%s: must name a profile", agent)
+					add("agents.%s: must name a profile, or `inherit` for the session model", agent)
+				case profile == inheritProfile:
+					// The session model: left out of the routing, like an unlisted agent.
 				case !slices.Contains(names, profile):
 					add("agents.%s: profile `%s` doesn't exist%s", agent, profile, near(profile, names))
 				default:
