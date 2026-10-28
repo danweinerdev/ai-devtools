@@ -48,10 +48,13 @@ func view(t graph.Task, now time.Time) taskView {
 }
 
 // newID is a lowercase UUIDv7: time-ordered, so generated IDs sort by
-// creation, and matching the graph's ID pattern.
-func newID(now time.Time) string {
+// creation, and matching the graph's ID pattern. It fails rather than return
+// a zeroed ID if the random source is unavailable.
+func newID(now time.Time) (string, error) {
 	var b [16]byte
-	_, _ = rand.Read(b[:])
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("can't generate an ID: %w", err)
+	}
 	ms := uint64(now.UnixMilli())
 	for i := 0; i < 6; i++ {
 		b[i] = byte(ms >> (40 - 8*i))
@@ -59,5 +62,5 @@ func newID(now time.Time) string {
 	b[6] = b[6]&0x0f | 0x70 // version 7
 	b[8] = b[8]&0x3f | 0x80 // RFC 4122 variant
 	h := hex.EncodeToString(b[:])
-	return strings.Join([]string{h[0:8], h[8:12], h[12:16], h[16:20], h[20:32]}, "-")
+	return strings.Join([]string{h[0:8], h[8:12], h[12:16], h[16:20], h[20:32]}, "-"), nil
 }
