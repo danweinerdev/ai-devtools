@@ -162,8 +162,37 @@ test("the guard bridge sends each tool call to aid and lets an allow through", a
     sessionID: "s1",
     agent: ORCHESTRATOR,
     cwd: "/project",
+    agent_mode: "primary",
+    turnID: "s1:0",
   })
   assert.ok(call.options.timeoutMs > 0)
+  await dispose()
+})
+
+test("the guard gets the caller's mode and a turn id that each user prompt bumps", async () => {
+  const { aid, calls } = standardAid()
+  const { hooks, dispose } = await boot({ aid })
+  const guardInputs = () => calls.filter((c) => c.args.join(" ") === "guard opencode-tool").map((c) => JSON.parse(c.options.input))
+  await hooks.session.prompt({ sessionID: "s1" })
+  await hooks.tool["execute.before"]({ tool: "grep", input: {}, sessionID: "s1", agent: ORCHESTRATOR })
+  await hooks.tool["execute.before"]({ tool: "grep", input: {}, sessionID: "s1", agent: "aid-explorer" })
+  await hooks.session.prompt({ sessionID: "s1" })
+  await hooks.tool["execute.before"]({ tool: "grep", input: {}, sessionID: "s1", agent: ORCHESTRATOR })
+  await hooks.tool["execute.before"]({ tool: "grep", input: {}, sessionID: "s2", agent: ORCHESTRATOR })
+  assert.deepEqual(guardInputs().map((i) => [i.agent_mode, i.turnID]), [
+    ["primary", "s1:1"], ["subagent", "s1:1"], ["primary", "s1:2"], ["primary", "s2:0"],
+  ])
+  await dispose()
+})
+
+test("an agent registered after setup gets its mode from the live registry", async () => {
+  const { aid, calls } = standardAid()
+  const { hooks, agents, dispose } = await boot({ aid })
+  agents.set("late-worker", { id: "late-worker", mode: "subagent", permissions: [] })
+  await hooks.tool["execute.before"]({ tool: "shell", input: {}, sessionID: "s", agent: "late-worker" })
+  await hooks.tool["execute.before"]({ tool: "shell", input: {}, sessionID: "s", agent: "nobody" })
+  const inputs = calls.filter((c) => c.args.join(" ") === "guard opencode-tool").map((c) => JSON.parse(c.options.input))
+  assert.deepEqual(inputs.map((i) => i.agent_mode), ["subagent", "primary"])
   await dispose()
 })
 

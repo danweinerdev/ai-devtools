@@ -78,6 +78,26 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
     if (policyResult.ok && policyResult.stdout.trim()) policy = policyResult.stdout.trim()
     else if (!policyResult.ok && !policyResult.missing) warn(`the routing policy is unavailable: ${failure(policyResult)}`)
 
+    // Each agent's mode, so the guard knows whether the caller is a subagent
+    // (subagents are never throttled). Recorded from the registry after our
+    // transform; an agent added later is looked up in the live registry.
+    const modes = new Map()
+    const modeOf = async (name) => {
+      if (!modes.has(name)) {
+        try {
+          for (const agent of unwrap(await ctx.agent.list()) ?? []) {
+            if (typeof agent?.mode === "string") modes.set(agent.id, agent.mode)
+          }
+        } catch {}
+      }
+      return modes.get(name) === "subagent" ? "subagent" : "primary"
+    }
+
+    // The inline budget is per user turn, like Claude's: each user prompt
+    // starts a new turn, which the guard keys its count on.
+    const turns = new Map()
+    const turnID = (sessionID) => `${sessionID}:${turns.get(sessionID) ?? 0}`
+
     let strippedVariants = new Set()
     let variantWarnings = []
     let appliedFindingsKey = "[]"
@@ -107,6 +127,7 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
         })
       }
       editor.default(ORCHESTRATOR)
+      for (const agent of editor.list()) if (typeof agent?.mode === "string") modes.set(agent.id, agent.mode)
     })
 
     // Registered before the default-model transform, so a free default model is
@@ -201,6 +222,9 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
       for (const text of variantWarnings) notes.push(`ai-development configuration warning: ${text}`)
       for (const text of notes) event.system.push({ type: "text", text })
     })
+    await ctx.session.hook("prompt", (event) => {
+      if (typeof event?.sessionID === "string") turns.set(event.sessionID, (turns.get(event.sessionID) ?? 0) + 1)
+    })
     await ctx.session.hook("generate", (event) => applyReasoningEffort(event, event.agent))
     await ctx.session.hook("compaction", (event) => applyReasoningEffort(event, COMPACTION_ROLE))
     await ctx.session.hook("title", (event) => applyReasoningEffort(event, TITLE_ROLE))
@@ -216,6 +240,8 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
         sessionID: event.sessionID,
         agent: event.agent,
         cwd,
+        agent_mode: await modeOf(event.agent),
+        turnID: turnID(event.sessionID),
       })
       const result = await aid(["guard", "opencode-tool"], { input, cwd, timeoutMs: guardTimeoutMs })
       const verdict = guardVerdict(result)
