@@ -25,14 +25,14 @@
 // Exit status: 0 all PASS, 1 any FAIL, 2 UNVERIFIED, skipped or could not run.
 
 import { execFile, execFileSync, spawn } from "node:child_process"
-import { createWriteStream, readFileSync, realpathSync } from "node:fs"
+import { createWriteStream, existsSync, readFileSync, realpathSync } from "node:fs"
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises"
 import { createServer } from "node:net"
-import { tmpdir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { compareModels, distinctFromDefault, inspectSubagentCalls, modelTuple, primarySessionEvidence, statusMax, summarize } from "./verify-models.js"
+import { compareModels, distinctFromDefault, formatTiming, inspectSubagentCalls, modelTuple, pickParentModel, primarySessionEvidence, statusMax, summarize, timingBreakdown } from "./verify-models.js"
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const PLUGIN_ID = "ai-development"
@@ -211,10 +211,95 @@ async function freePort() {
   })
 }
 
+/** Drops // and /* *\/ comments and trailing commas outside strings, so an opencode.jsonc parses as JSON. */
+export function stripJsonComments(text) {
+  let out = ""
+  let inString = false
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    const next = text[i + 1]
+    if (inString) {
+      out += c
+      if (c === "\\") { out += next ?? ""; i++ }
+      else if (c === '"') inString = false
+      continue
+    }
+    if (c === '"') { inString = true; out += c; continue }
+    if (c === "/" && next === "/") { while (i < text.length && text[i] !== "\n") i++; out += "\n"; continue }
+    if (c === "/" && next === "*") { i += 2; while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) i++; i++; continue }
+    if (c === ",") {
+      let j = i + 1
+      while (j < text.length && /\s/.test(text[j])) j++
+      if (text[j] === "}" || text[j] === "]") continue
+    }
+    out += c
+  }
+  return out
+}
+
+/**
+ * The user's global OpenCode config minus its plugins, for the suite's own
+ * server: providers and settings still apply, but only the checkout's plugin
+ * can load (a globally listed clone would otherwise be tested instead).
+ * Credentials stay where OpenCode keeps them, in the data directory.
+ */
+export function isolatedGlobalConfig(text) {
+  const config = JSON.parse(stripJsonComments(text))
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw stableError("GLOBAL_OPENCODE_CONFIG_SCHEMA")
+  delete config.plugins
+  delete config.plugin
+  return config
+}
+
+export function userConfigDir(env = process.env) {
+  return join(env.XDG_CONFIG_HOME || join(homedir(), ".config"), "opencode")
+}
+
+/**
+ * The environment for the suite's server: XDG_CONFIG_HOME points at a scratch
+ * directory holding the user's global opencode.json(c) without plugins, and
+ * OPENCODE_CONFIG/OPENCODE_CONFIG_DIR are dropped, so nothing outside the
+ * scratch project can add a plugin. Files are 0600 and removed at the end.
+ */
+export async function isolatedServerEnv(root, env = process.env) {
+  const dir = join(root, "xdg-config", "opencode")
+  await mkdir(dir, { recursive: true, mode: 0o700 })
+  for (const name of ["opencode.json", "opencode.jsonc"]) {
+    const file = join(userConfigDir(env), name)
+    if (!existsSync(file)) continue
+    let config
+    try { config = isolatedGlobalConfig(readFileSync(file, "utf8")) } catch { throw stableError("GLOBAL_OPENCODE_CONFIG_UNREADABLE") }
+    await writeFile(join(dir, name), `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 })
+  }
+  const serverEnv = { ...env, XDG_CONFIG_HOME: join(root, "xdg-config") }
+  delete serverEnv.OPENCODE_CONFIG
+  delete serverEnv.OPENCODE_CONFIG_DIR
+  return serverEnv
+}
+
+/**
+ * Which aid plugin the server loaded: the one entry for this plugin in
+ * /api/plugin, from a local source whose path is the checkout (or its
+ * index.js). Anything else (a clone from a global config, two copies, an npm
+ * package) means the suite isn't testing this checkout.
+ */
+export function pluginFromCheckout(plugins, repo, canonical = (p) => { try { return realpathSync.native(p) } catch { return resolve(p) } }) {
+  const want = canonical(repo)
+  const isOurs = (p) => p?.id === PLUGIN_ID || (p?.source?.type === "local" && typeof p.source.path === "string" &&
+    [want, join(want, "index.js")].includes(canonical(p.source.path)))
+  const ours = (Array.isArray(plugins) ? plugins : []).filter(isOurs)
+  const paths = ours.map((p) => (p?.source?.type === "local" ? p.source.path : p?.source?.type ?? "?"))
+  const fromCheckout = ours.filter((p) => p?.source?.type === "local" && typeof p.source.path === "string" &&
+    [want, join(want, "index.js")].includes(canonical(p.source.path)))
+  return { ok: ours.length === 1 && fromCheckout.length === 1, paths }
+}
+
 async function writeScratch(root, config) {
   await mkdir(join(root, ".opencode", "agents"), { recursive: true })
   await writeFile(join(root, ".opencode", "aid.json"), `${JSON.stringify(config, null, 2)}\n`)
-  await writeFile(join(root, "opencode.json"), `${JSON.stringify({ plugins: [join(REPO, "index.js")] }, null, 2)}\n`)
+  // OpenCode 2 loads a local plugin only from its directory; a path to
+  // index.js is refused ("configured plugin path must be a directory").
+  await writeFile(join(root, "opencode.json"), `${JSON.stringify({ plugins: [REPO] }, null, 2)}\n`)
   // Defined by the scratch project, not by this repo, with no model of its own.
   await writeFile(join(root, ".opencode", "agents", `${SENTINEL}.md`), [
     "---", "description: Live routing probe defined outside the ai-development repo.",
@@ -364,7 +449,7 @@ async function waitForPlugin(api, signal) {
     const plugins = await api.get("/api/plugin")
     if (!Array.isArray(plugins)) throw stableError("PLUGIN_SCHEMA")
     const plugin = plugins.find((item) => item.id === PLUGIN_ID)
-    if (plugin?.state?.status === "active") return
+    if (plugin?.state?.status === "active") return plugins
     if (plugin?.state?.status === "failed") throw stableError("AID_PLUGIN_FAILED")
   }
   throw stableError("AID_PLUGIN_NOT_ACTIVE")
@@ -475,8 +560,20 @@ async function waitForDispatch(api, sessionID, rowSignal, timeoutMs) {
   await api.post(`/api/experimental/session/${encodeURIComponent(sessionID)}/wait`, {}, timeoutMs, rowSignal)
 }
 
-async function startProbe(api, root, target, prompt, sessions, signal) {
-  const session = await api.post("/api/session", { agent: ORCHESTRATOR, location: { directory: root } }, undefined, signal)
+/**
+ * The body that creates a probe's parent session: the orchestrator in the
+ * scratch project, on parentModel when given (OpenCode 2's session create takes
+ * `model: {providerID, id, variant?}`, per its OpenAPI schema Model.Ref).
+ */
+export function probeSessionBody(root, parentModel) {
+  const body = { agent: ORCHESTRATOR, location: { directory: root } }
+  const tuple = parentModel ? modelTuple(parentModel) : null
+  if (tuple?.valid) body.model = { providerID: tuple.providerID, id: tuple.modelID, ...(tuple.variant ? { variant: tuple.variant } : {}) }
+  return body
+}
+
+async function startProbe(api, root, target, prompt, sessions, signal, parentModel) {
+  const session = await api.post("/api/session", probeSessionBody(root, parentModel), undefined, signal)
   if (typeof session?.id !== "string" || !session.id) throw stableError("SESSION_SCHEMA")
   sessions.add(session.id)
   await api.post(`/api/session/${encodeURIComponent(session.id)}/prompt`, {
@@ -506,13 +603,16 @@ async function dispatch(api, root, row, sessions, registry, signal, rowSignal, t
   const notes = []
   const note = (state, code) => notes.push({ state, code })
   const ids = []
+  const started = Date.now()
   let sessionID
   let completed = false
   let childSessions = []
   let assistantCount = 0
   let parentModel
+  let parentMessages
+  const childMessages = []
   try {
-    sessionID = await startProbe(api, root, row.agent, "Reply with exactly the single word PONG. Do not call any other tool.", sessions, rowSignal)
+    sessionID = await startProbe(api, root, row.agent, "Reply with exactly the single word PONG. Do not call any other tool.", sessions, rowSignal, row.parent?.model)
     ids.push(sessionID)
     await waitForDispatch(api, sessionID, rowSignal, timeoutMs)
     completed = true
@@ -525,6 +625,7 @@ async function dispatch(api, root, row, sessions, registry, signal, rowSignal, t
   if (completed) {
     let messages
     try { messages = await api.get(`/api/session/${encodeURIComponent(sessionID)}/context`) } catch {}
+    parentMessages = messages
     parentModel = (Array.isArray(messages) ? messages : []).find((message) => message?.type === "assistant")?.model
     const inspection = inspectSubagentCalls(messages, row.agent)
     for (const code of inspection.codes) note(inspection.state, code)
@@ -544,6 +645,7 @@ async function dispatch(api, root, row, sessions, registry, signal, rowSignal, t
           const messages = await api.get(`/api/session/${encodeURIComponent(child.id)}/context`)
           if (!Array.isArray(messages)) throw stableError("CONTEXT_SCHEMA")
           const assistants = messages.filter((message) => message?.type === "assistant")
+          childMessages.push(...assistants)
           if (!assistants.length) note("UNVERIFIED", "ASSISTANT_MESSAGE_MISSING")
           for (const message of assistants) {
             sources[`assistant_${assistantCount++}`] = message.model
@@ -564,7 +666,36 @@ async function dispatch(api, root, row, sessions, registry, signal, rowSignal, t
   const indistinct = distinctFromDefault(row.expect, parentModel)
   if (indistinct) note("UNVERIFIED", indistinct)
   for (const item of notes) addCode(result, item.state, item.code)
-  return { result, sources, ids, parentID: completed && childSessions.length === 1 && assistantCount > 0 && !notes.length ? sessionID : null }
+  const hint = indistinct && !row.parent ? "add a profile with a different model to aid.json to prove this row" : null
+  return { result, sources, ids, parentModel, hint, timing: timingBreakdown(Date.now() - started, parentMessages, childMessages) }
+}
+
+/**
+ * The orchestrator row: its own session, created with no model so the turn
+ * runs on what the plugin routed aid-orchestrator to, asked for a one-word
+ * reply. (Worker rows' parents run on a chosen other model, so they can't
+ * stand in for the orchestrator's own routing.)
+ */
+async function primaryProbe(api, root, sessions, signal, rowSignal, timeoutMs) {
+  const started = Date.now()
+  let sessionID
+  try {
+    const session = await api.post("/api/session", probeSessionBody(root), undefined, rowSignal)
+    if (typeof session?.id !== "string" || !session.id) throw stableError("SESSION_SCHEMA")
+    sessionID = session.id
+    sessions.add(sessionID)
+    await api.post(`/api/session/${encodeURIComponent(sessionID)}/prompt`, {
+      text: "Reply with exactly the single word DONE. Do not call any tool.",
+    }, undefined, rowSignal)
+    await waitForDispatch(api, sessionID, rowSignal, timeoutMs)
+  } catch (error) {
+    signal.throwIfAborted()
+    if (sessionID) await interruptSession(api, sessionID)
+    return { sources: {}, notes: [probeFailure(error, rowSignal)], ids: [sessionID].filter(Boolean), timing: null }
+  }
+  signal.throwIfAborted()
+  const evidence = await primaryEvidence(api, sessionID)
+  return { ...evidence, ids: [sessionID], timing: timingBreakdown(Date.now() - started, evidence.messages) }
 }
 
 /**
@@ -614,7 +745,7 @@ async function primaryEvidence(api, parentID) {
   try { session = await api.get(`/api/session/${encodeURIComponent(parentID)}`) } catch {}
   let messages
   try { messages = await api.get(`/api/session/${encodeURIComponent(parentID)}/context`) } catch {}
-  return primarySessionEvidence(session, messages)
+  return { ...primarySessionEvidence(session, messages), messages }
 }
 
 function displayModel(value) {
@@ -622,20 +753,29 @@ function displayModel(value) {
   return `${tuple.providerID ?? "?"}/${tuple.modelID ?? "?"}${tuple.variant ? `:${tuple.variant}` : ""}`
 }
 
-function printRow(row, result, sources, elapsedMs) {
-  const elapsed = elapsedMs === undefined ? "" : `  (${(elapsedMs / 1000).toFixed(1)}s)`
-  if (row.mode === "guard") {
-    console.log(`${result.state}  guard  expected=subagent call denied by aid${result.codes.length ? ` codes=${result.codes.join(",")}` : ""}${elapsed}`)
-    return
-  }
+/**
+ * One row's line: state, agent, expected and observed models, codes, the
+ * parent model a worker was dispatched from, and where the time went.
+ */
+export function rowLine(row, result, sources, elapsedMs, extra = {}) {
+  const elapsed = elapsedMs === undefined ? "" : `  ${formatTiming(elapsedMs, extra.timing ?? null)}`
+  const codes = result.codes.length ? ` codes=${result.codes.join(",")}` : ""
+  if (row.mode === "guard") return `${result.state}  guard  expected=subagent call denied by aid${codes}${elapsed}`
   const observed = Object.entries(sources).map(([name, value]) => `${name}=${displayModel(value)}`).join(", ") || "none"
-  console.log(`${result.state}  ${row.agent}  expected=${row.expect ? displayModel(row.expect) : "?"} observed=[${observed}]${result.codes.length ? ` codes=${result.codes.join(",")}` : ""}${elapsed}`)
+  const parent = extra.parentModel ? ` parent=${displayModel(extra.parentModel)}` : ""
+  return `${result.state}  ${row.agent}  expected=${row.expect ? displayModel(row.expect) : "?"} observed=[${observed}]${parent}${codes}${elapsed}`
+}
+
+function printRow(row, result, sources, elapsedMs, extra = {}) {
+  console.log(rowLine(row, result, sources, elapsedMs, extra))
+  if (extra.hint) console.log(`  ${row.agent}: ${extra.hint}`)
 }
 
 /**
  * Each routed row's expected model, from the live catalog: a variant the
- * catalog doesn't offer is stripped by the plugin, so it's expected absent;
- * the orchestrator runs on the default model, which carries no variant.
+ * catalog doesn't offer is stripped by the plugin, so it's expected absent.
+ * That holds for the orchestrator too: on OpenCode 2.2.0 its primary turns
+ * run with the profile's variant (seen live), not a variant-less default.
  * Agents may share a model: a row is only indistinct when its model is the one
  * its parent session ran on (see distinctFromDefault), judged per dispatch.
  */
@@ -645,7 +785,7 @@ export function expectations(rows, catalog) {
     const model = catalog.find((entry) => { const t = modelTuple(entry); return t.valid && t.providerID === row.providerID && t.modelID === row.modelID })
     if (!model) { missing.push(row.model); continue }
     const variants = (Array.isArray(model.variants) ? model.variants : []).map((v) => (typeof v === "string" ? v : v?.id))
-    const variant = row.mode === "subagent" && row.variant && variants.includes(row.variant) ? row.variant : undefined
+    const variant = row.variant && variants.includes(row.variant) ? row.variant : undefined
     row.expect = { providerID: row.providerID, modelID: row.modelID, ...(variant ? { variant } : {}) }
   }
   return missing
@@ -696,7 +836,8 @@ async function run(options) {
     await writeFile(join(root, ".opencode", "aid.json"), `${JSON.stringify(prereq.user, null, 2)}\n`)
     const resolvedUser = await runQuiet("aid", ["config", "--harness", "opencode", "--json"], { cwd: root })
     if (!resolvedUser.ok) throw stableError("AID_CONFIG_INVALID")
-    const plan = planRows(JSON.parse(resolvedUser.stdout), options.agents)
+    const resolved = JSON.parse(resolvedUser.stdout)
+    const plan = planRows(resolved, options.agents)
     rows = plan.rows
     for (const agent of plan.skipped) console.log(`SKIPPED  ${agent}  not mapped to a profile in aid.json; it runs on the session's model`)
     if (!rows.some((row) => row.mode === "subagent")) throw stableError("NO_ROUTED_SUBAGENTS")
@@ -709,8 +850,11 @@ async function run(options) {
     // The server's logs go to a private file (password redacted) so a stuck or
     // failing row can be diagnosed; they're never echoed wholesale.
     logs = serverLog(join(root, "opencode-server.log"))
+    // Only the checkout's plugin may load: the server sees the user's global
+    // config (providers, settings) without its plugins.
+    const serverEnv = await isolatedServerEnv(root)
     child = spawn(prereq.binary, ["serve", "--hostname", "127.0.0.1", "--port", String(port), "--print-logs", "--log-level", "info"], {
-      cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
+      cwd: root, env: serverEnv, stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
       detached: process.platform !== "win32", shell: false,
     })
     child.stdout.on("data", (chunk) => logs.write(chunk))
@@ -720,13 +864,16 @@ async function run(options) {
     const password = await waitForServer(base, child, logs, signal)
     logs.forgetRaw()
     api = client(base, root, password, signal)
-    await waitForPlugin(api, signal)
+    const plugins = await waitForPlugin(api, signal)
 
     const expectedSkills = JSON.parse(readFileSync(join(REPO, "skills-manifest.json"), "utf8")).skills.map((skill) => skill.name)
     const registration = await registrationChecks(api, expectedSkills, signal)
+    const origin = pluginFromCheckout(plugins, REPO)
+    if (!origin.ok) registration.failures.unshift("PLUGIN_NOT_FROM_CHECKOUT")
     const registrationResult = { state: registration.failures.length ? "FAIL" : "PASS", codes: registration.failures }
     results.set("registration", registrationResult)
-    console.log(`${registrationResult.state}  registration  7 aid-* agents, ${expectedSkills.length} aid-* skills${registration.failures.length ? ` codes=${registration.failures.join(",")}` : ""}`)
+    console.log(`${registrationResult.state}  registration  plugin from ${origin.paths.join(", ") || "?"}, 7 aid-* agents, ${expectedSkills.length} aid-* skills${registration.failures.length ? ` codes=${registration.failures.join(",")}` : ""}`)
+    if (!origin.ok) console.log(`  registration: expected exactly one ${PLUGIN_ID} plugin, loaded from ${REPO}; the rows below may not be testing this checkout`)
 
     const catalog = await api.get("/api/model")
     if (!Array.isArray(catalog)) throw stableError("MODEL_CATALOG_SCHEMA")
@@ -740,35 +887,38 @@ async function run(options) {
     const registry = new Map(rows.map((row) => [row.agent, registration.agents.find((agent) => agent.id === row.agent)?.model]))
     // Each row prints as it finishes; a timed-out row also shows the server
     // log lines for its sessions.
-    const finish = (row, result, sources, started, ids = []) => {
+    // Each worker is dispatched from a parent on another of the config's
+    // models, so its routed model can't be mistaken for an inherited one.
+    for (const row of rows.filter((item) => item.mode === "subagent")) row.parent = pickParentModel(row.expect, resolved.profiles, catalog)
+    const finish = (row, result, sources, started, ids = [], extra = {}) => {
       results.set(row.agent, result)
       evidence.set(row.agent, sources)
-      printRow(row, result, sources, Date.now() - started)
+      printRow(row, result, sources, Date.now() - started, extra)
       if (result.codes.includes("TIMEOUT")) {
         console.log(`  ${row.agent}: no result within ${options.timeoutMs / 1000}s; session interrupted. Server log (${logs.path}), last lines for its sessions:`)
         for (const line of logs.tail(ids)) console.log(`    ${line}`)
       }
     }
-    let parentID = null
     for (const row of rows.filter((item) => item.mode === "subagent")) {
       signal.throwIfAborted()
       const started = Date.now()
       console.log(`running ${row.agent}…`)
       const probe = await withRowDeadline(options.timeoutMs, signal, (rowSignal) =>
         dispatch(api, root, row, sessions, registry.get(row.agent), signal, rowSignal, options.timeoutMs))
-      finish(row, probe.result, probe.sources, started, probe.ids)
-      if (probe.parentID && !parentID) parentID = probe.parentID
+      finish(row, probe.result, probe.sources, started, probe.ids, { parentModel: probe.parentModel, timing: probe.timing, hint: probe.hint })
     }
-    // Primary agents can't be subagent targets; reuse a successful worker's parent.
+    // Primary agents can't be subagent targets: the orchestrator gets its own
+    // session, with no model given, so its turn runs on its routed model.
     for (const row of rows.filter((item) => item.mode === "primary")) {
       signal.throwIfAborted()
       const started = Date.now()
       console.log(`running ${row.agent}…`)
-      const parent = await primaryEvidence(api, parentID)
-      const sources = { ...parent.sources }
+      const probe = await withRowDeadline(options.timeoutMs, signal, (rowSignal) =>
+        primaryProbe(api, root, sessions, signal, rowSignal, options.timeoutMs))
+      const sources = { ...probe.sources }
       const result = compareModels(row.expect, sources)
-      for (const code of parent.notes) addCode(result, "UNVERIFIED", code)
-      finish(row, result, sources, started)
+      for (const code of probe.notes) addCode(result, "UNVERIFIED", code)
+      finish(row, result, sources, started, probe.ids, { timing: probe.timing })
     }
     for (const row of rows.filter((item) => item.mode === "guard")) {
       signal.throwIfAborted()
@@ -796,6 +946,9 @@ async function run(options) {
       catch { couldNotRun = true; console.error("UNVERIFIED: OWNED_SERVER_CLEANUP_FAILED") }
       if (signal.aborted) couldNotRun = true
       try { await logs?.close() } catch {}
+      // The copy of the user's global config may hold provider settings or
+      // keys: never leave it behind, even in a kept scratch directory.
+      if (root) await rm(join(root, "xdg-config"), { recursive: true, force: true }).catch(() => {})
       const failed = summarize([...results.values()]).exitCode !== 0
       if (root) {
         // Anything short of an all-PASS run keeps the evidence, server log included.
