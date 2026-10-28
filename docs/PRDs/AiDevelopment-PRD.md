@@ -64,7 +64,7 @@ The workflow lives in **skills** (procedures the agent loads when relevant) and 
 
 There are no commands. The loops are modes the conversation moves through, entered when the work calls for them:
 
-- **Think:** talking through a problem, an idea, a conflict, or a question of scope. Its output is PRD changes.
+- **Think:** talking through a problem, an idea, a conflict, or a question of scope, or challenging a PRD before deciding it's ready to build. Its output is PRD changes.
 - **Make:** a request to build something the PRD describes and the code doesn't yet do.
 - **Learn:** finishing a piece of work, or a request to check, audit, or clean up.
 
@@ -87,6 +87,8 @@ A PRD is structured prose with diagrams that describes a whole feature set as it
 ### Think: the judgement engine
 
 `aid-think` cycles **Explore** (facts with evidence; wide sweeps delegated to the explorer), **Challenge** (conflicts between the user's ideas, documents, and code, stated directly), **Clarify** (one question at a time, each with context, options, and a recommendation; the next question waits for the answer), and **Choose** (the user decides; decisions become PRD fragments). It repeats until nothing open blocks the next step. The user's first answer isn't assumed to be right: conflicts with the evidence are raised once, plainly, and then the user's decision stands.
+
+When the user is deciding whether a PRD is ready to build, they can ask for it to be **challenged adversarially**: part of Challenge (`aid-think-challenge`), run only when asked. It attacks the PRD rather than assessing it, through intent-isolated lenses, each run by `aid-oracle` in its own context: **coherence** (the PRD alone: contradictions, ambiguity, statements no check could prove, behaviour without its failure case, undefined terms), **goals** (the overview and goals against the behaviour sections: what's described that doesn't serve a goal, and goals nothing described achieves), and **grounding** (the PRD against the code and related PRDs, with the code evidence gathered by `aid-explorer` first: assumptions that don't hold). The result is a ranked list of challenges, each with its evidence. It gives no verdict: readiness is the user's call, made with everything else they know. Challenges the user accepts become change fragments or open questions. When the lenses can't run in isolated contexts, they run serially and are labelled as serial.
 
 ### Make: delegate, build, verify, review, rebuild
 

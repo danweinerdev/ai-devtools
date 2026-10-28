@@ -107,7 +107,7 @@
     {
       "name": "aid-think-challenge",
       "loop": "think",
-      "description": "The Challenge stage of the Think loop, loaded by aid-think and not an entry point. Lines up the user's ideas, the PRD, references, and code, and states every conflict, contradiction with the facts, gap, piece of hidden scope, and risk directly, ranked by what blocks the most downstream work.",
+      "description": "The Challenge stage of the Think loop, loaded by aid-think and not an entry point. Lines up the user's ideas, the PRD, references, and code, and states every conflict, contradiction with the facts, gap, piece of hidden scope, and risk directly, ranked by what blocks the most downstream work. Also runs the adversarial PRD challenge, through isolated coherence, goals, and grounding lenses, when the user asks for one while deciding whether a PRD is ready to build.",
       "path": "skills/aid-think-challenge/SKILL.md"
     },
     {
