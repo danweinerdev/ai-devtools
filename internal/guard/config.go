@@ -131,14 +131,22 @@ func Load(cwd string) (Config, error) {
 	return loadFile(Claude, filepath.Join(cwd, ConfigPath), filepath.ToSlash(ConfigPath))
 }
 
-// LoadOpenCode reads and validates OpenCode's config: `<cwd>/.opencode/aid.json`
-// if it exists, else the global one. Only absence moves on to the next file;
-// an invalid file is an error.
+// LoadOpenCode reads and validates OpenCode's config: the nearest
+// `.opencode/aid.json` in cwd or a parent directory (as OpenCode finds its own
+// project config), else the global one. Only absence moves on to the next
+// file; an invalid file is an error.
 func LoadOpenCode(cwd string, env Env) (Config, error) {
 	display := filepath.ToSlash(OpenCodeConfigPath)
-	project := filepath.Join(cwd, OpenCodeConfigPath)
-	if _, err := os.Stat(project); err == nil {
-		return loadFile(OpenCode, project, display)
+	for dir := cwd; ; {
+		project := filepath.Join(dir, OpenCodeConfigPath)
+		if _, err := os.Stat(project); err == nil {
+			return loadFile(OpenCode, project, display)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
 	}
 	if global := openCodeGlobal(env); global != "" {
 		if _, err := os.Stat(global); err == nil {
