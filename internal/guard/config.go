@@ -11,26 +11,56 @@ import (
 	"strings"
 )
 
-// Project config is `<cwd>/.claude/aid.json`:
+// Claude Code's project config is `<cwd>/.claude/aid.json`:
 //
 //	{"models": {"<agent>": "<model>"},
 //	 "guards": {"inline_budget": 20, "exempt_verification": true},
 //	 "sensitive": {"rules": [{"name": "...", "patterns": [...], "paths": [...],
 //	                          "allow_agents": [...]}]}}
 //
-// A missing file is an empty config (guards use defaults). An invalid one fails
-// loudly: Load returns a *ConfigError, and Run turns that into a deny that says
-// what to fix. Only a bug in a guard's own code fails open.
+// OpenCode's is `<cwd>/.opencode/aid.json`, else the global
+// `$XDG_CONFIG_HOME/opencode/aid.json` (`~/.config/opencode/aid.json`); the
+// first file found is the config, never a merge. It has the same guards and
+// sensitive keys, and routes models through named profiles instead:
+//
+//	{"profiles": {"<name>": {"model": "provider/model[#variant]", "reasoning_effort": "high"}},
+//	 "agents": {"<agent>": "<profile>"}, "hide_free_models": true, ...}
+//
+// An agent missing from agents inherits the session model; nothing has a
+// default. A missing file is an empty config (guards use defaults). An invalid
+// one fails loudly, even when another file would have been next: the loaders
+// return a *ConfigError, and Run turns that into a deny that says what to fix.
+// Only a bug in a guard's own code fails open.
 
 var (
-	// ConfigPath is the project config, relative to the session's directory.
-	ConfigPath = filepath.Join(".claude", "aid.json")
+	// ConfigPath is Claude Code's project config, relative to the session's
+	// directory; OpenCodeConfigPath is OpenCode's.
+	ConfigPath         = filepath.Join(".claude", "aid.json")
+	OpenCodeConfigPath = filepath.Join(".opencode", "aid.json")
 
 	models        = []string{"haiku", "sonnet", "opus", "fable"}
-	topKeys       = []string{"models", "guards", "sensitive"}
+	claudeKeys    = []string{"models", "guards", "sensitive"}
+	openCodeKeys  = []string{"profiles", "agents", "hide_free_models", "guards", "sensitive"}
+	profileKeys   = []string{"model", "reasoning_effort"}
 	guardKeys     = []string{"inline_budget", "exempt_verification"}
 	sensitiveKeys = []string{"rules"}
 	ruleKeys      = []string{"name", "patterns", "paths", "allow_agents"}
+
+	// The efforts the model router accepts (its REASONING_EFFORTS).
+	efforts     = []string{"none", "minimal", "low", "medium", "high", "xhigh"}
+	profileName = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*$`)
+	// provider/model, the model part free to hold more slashes (gateways such
+	// as openrouter/anthropic/x), with an optional #variant.
+	modelRef = regexp.MustCompile(`^([^/\s#]+)/([^\s#]+)(?:#([^\s#]+))?$`)
+)
+
+// Harness names a config's home: which file is read and which keys it allows.
+type Harness string
+
+// The harnesses aid has guards for.
+const (
+	Claude   Harness = "claude"
+	OpenCode Harness = "opencode"
 )
 
 const (
@@ -42,11 +72,28 @@ var genericAgents = []string{"general-purpose", "explore", "plan", "claude"}
 
 // Config is a validated aid.json.
 type Config struct {
-	Models             map[string]string
+	// Path names the file in messages: the one read, else where it would go.
+	Path string
+	// Source is the absolute path of the file read, or "" when there was none.
+	Source string
+
+	Models             map[string]string // Claude Code: agent -> model
+	Profiles           map[string]Profile
+	Agents             map[string]string // OpenCode: agent -> profile
+	HideFreeModels     bool
 	InlineBudget       int
 	ExemptVerification bool
 	Sensitive          []Rule // nil: the gate isn't configured
 	HasSensitive       bool
+}
+
+// Profile is a named OpenCode model choice.
+type Profile struct {
+	Model           string `json:"model"` // as written: provider/model[#variant]
+	Provider        string `json:"provider"`
+	ID              string `json:"id"`
+	Variant         string `json:"variant,omitempty"`
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 }
 
 // Rule is one sensitivity rule.
@@ -73,47 +120,95 @@ func (e *ConfigError) Error() string {
 		"AID_GUARDS=off disables the guards for the session.", e.Path, strings.Join(lines, "\n"))
 }
 
-func defaults() Config {
-	return Config{Models: map[string]string{}, InlineBudget: defaultBudget, ExemptVerification: true}
+func defaults(path string) Config {
+	return Config{Path: path, Models: map[string]string{}, Profiles: map[string]Profile{},
+		Agents: map[string]string{}, InlineBudget: defaultBudget, ExemptVerification: true}
 }
 
-// Load reads and validates `<cwd>/.claude/aid.json`. A missing file is the
-// default config.
+// Load reads and validates Claude Code's `<cwd>/.claude/aid.json`. A missing
+// file is the default config.
 func Load(cwd string) (Config, error) {
-	raw, err := os.ReadFile(filepath.Join(cwd, ConfigPath))
+	return loadFile(Claude, filepath.Join(cwd, ConfigPath), filepath.ToSlash(ConfigPath))
+}
+
+// LoadOpenCode reads and validates OpenCode's config: `<cwd>/.opencode/aid.json`
+// if it exists, else the global one. Only absence moves on to the next file;
+// an invalid file is an error.
+func LoadOpenCode(cwd string, env Env) (Config, error) {
+	display := filepath.ToSlash(OpenCodeConfigPath)
+	project := filepath.Join(cwd, OpenCodeConfigPath)
+	if _, err := os.Stat(project); err == nil {
+		return loadFile(OpenCode, project, display)
+	}
+	if global := openCodeGlobal(env); global != "" {
+		if _, err := os.Stat(global); err == nil {
+			return loadFile(OpenCode, global, filepath.ToSlash(global))
+		}
+	}
+	return defaults(display), nil
+}
+
+// openCodeGlobal is `$XDG_CONFIG_HOME/opencode/aid.json`, else the same under
+// `~/.config`, or "" with neither.
+func openCodeGlobal(env Env) string {
+	base := ""
+	if env.Getenv != nil {
+		base = env.Getenv("XDG_CONFIG_HOME")
+	}
+	if base == "" && env.Home != "" {
+		base = filepath.Join(env.Home, ".config")
+	}
+	if base == "" {
+		return ""
+	}
+	return filepath.Join(base, "opencode", "aid.json")
+}
+
+// loadFile reads one config file; display names it in messages.
+func loadFile(h Harness, path, display string) (Config, error) {
+	raw, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return defaults(), nil
+		return defaults(display), nil
 	}
 	if err != nil {
 		var pe *fs.PathError
 		if errors.As(err, &pe) {
 			err = pe.Err
 		}
-		return Config{}, &ConfigError{ConfigPath, []string{fmt.Sprintf("cannot be read (%v)", err)}}
+		return Config{}, &ConfigError{display, []string{fmt.Sprintf("cannot be read (%v)", err)}}
 	}
 	data, err := parse(raw)
 	if err != nil {
-		return Config{}, &ConfigError{ConfigPath, []string{fmt.Sprintf("is not valid JSON (%v)", err)}}
+		return Config{}, &ConfigError{display, []string{fmt.Sprintf("is not valid JSON (%v)", err)}}
 	}
-	cfg, problems := validate(data)
+	cfg, problems := validate(h, data)
 	if len(problems) > 0 {
-		return Config{}, &ConfigError{ConfigPath, problems}
+		return Config{}, &ConfigError{display, problems}
+	}
+	cfg.Path = display
+	if abs, err := filepath.Abs(path); err == nil {
+		cfg.Source = abs
 	}
 	return cfg, nil
 }
 
 // validate returns the config and every problem in it, as readable lines.
-func validate(data any) (Config, []string) {
-	cfg := defaults()
+func validate(h Harness, data any) (Config, []string) {
+	cfg := defaults("")
 	top, ok := data.(*Object)
 	if !ok {
 		return cfg, []string{"the top level must be a JSON object"}
 	}
 	var problems []string
 	add := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
-	unknown(top, topKeys, "top level", &problems)
+	if h == OpenCode {
+		unknown(top, openCodeKeys, "top level", &problems)
+		validateRouting(top, &cfg, add, &problems)
+	} else {
+		unknown(top, claudeKeys, "top level", &problems)
+	}
 
-	if top.Has("models") {
+	if h == Claude && top.Has("models") {
 		m, ok := top.Get("models").(*Object)
 		if !ok {
 			add("models: must be an object of agent name -> model")
@@ -198,6 +293,94 @@ func validate(data any) (Config, []string) {
 		}
 	}
 	return cfg, problems
+}
+
+// validateRouting reads OpenCode's profiles, agents and hide_free_models.
+func validateRouting(top *Object, cfg *Config, add func(string, ...any), problems *[]string) {
+	if top.Has("profiles") {
+		ps, ok := top.Get("profiles").(*Object)
+		if !ok {
+			add("profiles: must be an object of profile name -> {model, reasoning_effort}")
+		} else {
+			for _, name := range ps.Keys {
+				where := "profiles." + name
+				if !profileName.MatchString(name) {
+					add("%s: profile names are lowercase letters, digits, '.' and '-', starting with a letter or digit", where)
+				}
+				po, ok := ps.Values[name].(*Object)
+				if !ok {
+					add("%s: must be an object with a model and optionally a reasoning_effort", where)
+					continue
+				}
+				unknown(po, profileKeys, where, problems)
+				prof := Profile{}
+				model, isStr := po.Get("model").(string)
+				if m := modelRef.FindStringSubmatch(model); !isStr || m == nil {
+					add("%s.model: `%s` must be provider/model or provider/model#variant", where, display(po.Get("model")))
+				} else {
+					prof.Model, prof.Provider, prof.ID, prof.Variant = model, m[1], m[2], m[3]
+				}
+				if po.Has("reasoning_effort") {
+					s, ok := po.Get("reasoning_effort").(string)
+					switch {
+					case !ok || !slices.Contains(efforts, s):
+						add("%s.reasoning_effort: `%s` is not one of %s", where, display(po.Get("reasoning_effort")),
+							strings.Join(efforts, ", "))
+					case prof.Variant != "":
+						add("%s: set a #variant or a reasoning_effort, not both", where)
+					default:
+						prof.ReasoningEffort = s
+					}
+				}
+				cfg.Profiles[name] = prof
+			}
+		}
+	}
+	if top.Has("agents") {
+		as, ok := top.Get("agents").(*Object)
+		if !ok {
+			add("agents: must be an object of agent name -> profile name")
+		} else {
+			names := profileNames(top)
+			for _, agent := range as.Keys {
+				profile, isStr := as.Values[agent].(string)
+				switch {
+				case strings.TrimSpace(agent) == "" || strings.ContainsAny(agent, " \t\n"):
+					add("agents: `%s` is not an agent name", agent)
+				case !isStr || profile == "":
+					add("agents.%s: must name a profile", agent)
+				case !slices.Contains(names, profile):
+					add("agents.%s: profile `%s` doesn't exist%s", agent, profile, near(profile, names))
+				default:
+					cfg.Agents[agent] = profile
+				}
+			}
+		}
+	}
+	if top.Has("hide_free_models") {
+		if b, ok := top.Get("hide_free_models").(bool); !ok {
+			add("hide_free_models: must be true or false")
+		} else {
+			cfg.HideFreeModels = b
+		}
+	}
+}
+
+// profileNames are the profile keys as written, valid or not, so a reference
+// to a profile with problems of its own reports those, not "doesn't exist".
+func profileNames(top *Object) []string {
+	if ps, ok := top.Get("profiles").(*Object); ok {
+		return ps.Keys
+	}
+	return nil
+}
+
+// near is a did-you-mean suffix, or "".
+func near(key string, allowed []string) string {
+	if n := closest(key, allowed); n != "" {
+		return fmt.Sprintf(" (did you mean `%s`?)", n)
+	}
+	return ""
 }
 
 // unknown reports keys of o not in allowed, with the closest allowed key.

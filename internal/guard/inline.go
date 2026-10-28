@@ -105,7 +105,7 @@ var (
 var pathFields = []string{"file_path", "path", "notebook_path", "filePath"}
 
 // exemptRoots, under the session's directory, are never counted.
-var exemptRoots = [][]string{{"docs", "PRDs"}, {".aid"}, {".claude", "aid.json"}}
+var exemptRoots = [][]string{{"docs", "PRDs"}, {".aid"}, {".claude", "aid.json"}, {".opencode", "aid.json"}}
 
 // writeRedirect: stdout redirected to a file means the command writes, it
 // doesn't explore. `2>` and `2>&1` are stderr plumbing common in real
@@ -191,7 +191,7 @@ func inline(p *Object, env Env) (Decision, error) {
 	if exemptPathOp(tool, in, cwd, env.Home) || isAidCLI(tool, in) {
 		return Decision{}, nil // before the config load, so a broken aid.json can still be read
 	}
-	cfg, err := Load(cwd)
+	cfg, err := loadConfig(cwd, env)
 	if err != nil {
 		return Decision{}, err
 	}
@@ -212,11 +212,12 @@ func inline(p *Object, env Env) (Decision, error) {
 		return Decision{}, nil
 	}
 	return deny(fmt.Sprintf("inline search op %d this turn exceeds the budget of %d. You are exploring "+
-		"inline at main-loop cost. Delegate the remaining discovery to aid-explorer in one Agent call; "+
+		"inline at main-loop cost. Delegate the remaining discovery to aid-explorer in one %s call; "+
 		"the budget resets when you delegate. Reads under docs/PRDs/ and .aid/, aid CLI calls, and "+
 		"verification commands (tests, linters, git log/show, process checks) are not counted. To raise "+
-		`the budget set {"guards": {"inline_budget": %d}} in .claude/aid.json; AID_GUARDS=off disables `+
-		"the guards for the session.", count, cfg.InlineBudget, max(cfg.InlineBudget*2, 20))), nil
+		`the budget set {"guards": {"inline_budget": %d}} in %s; AID_GUARDS=off disables `+
+		"the guards for the session.", count, cfg.InlineBudget, spawnCall(env), max(cfg.InlineBudget*2, 20),
+		cfg.Path)), nil
 }
 
 // bashPathTokens are the argument tokens of a shell command that name paths.
