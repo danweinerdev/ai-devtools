@@ -36,6 +36,6 @@ All from the plugin's `setup`, with nothing copied or symlinked:
 | `src/routing.js` | profiles to model refs, variant and free-model checks |
 | `src/active-subagents.js`, `tui.tsx` | the sidebar |
 | `test/*.test.js` | offline tests: `make test-opencode` (part of `make check` where node exists) |
-| `test/live/` | the live suite: `make test-opencode-e2e` (real model calls; local only) |
+| `live/` | the live suite (kept out of `test/` so a bare `node --test` never runs it): `make test-opencode-e2e` (real model calls; local only) |
 
 Ported from opencode-model-router's OpenCode 2 adapter.

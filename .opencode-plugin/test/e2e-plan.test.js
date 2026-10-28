@@ -4,7 +4,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { expectations, judgeGuard, parseArgs, planRows, scratchConfig } from "./live/e2e.js"
+import { expectations, judgeGuard, parseArgs, planRows, scratchConfig } from "../live/e2e.js"
 
 const RESOLVED = {
   profiles: { fast: { model: "acme/fast-1" }, deep: { model: "acme/deep-2#high" }, lead: { model: "acme/lead-3" } },

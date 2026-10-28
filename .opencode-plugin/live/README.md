@@ -24,7 +24,7 @@ Requirements:
 ```sh
 AID_E2E_CONFIG=/path/to/aid.json make test-opencode-e2e
 AID_E2E_CONFIG=/path/to/aid.json make test-opencode-e2e E2E_ARGS="--agents aid-oracle,guard --keep"
-node .opencode-plugin/test/live/e2e.js --config /path/to/aid.json --opencode /path/to/opencode
+node .opencode-plugin/live/e2e.js --config /path/to/aid.json --opencode /path/to/opencode
 ```
 
 - `--config PATH` (or `AID_E2E_CONFIG`): the aid.json to prove.

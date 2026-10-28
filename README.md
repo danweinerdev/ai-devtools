@@ -63,7 +63,7 @@ make install-codex        # symlinks dist/codex/agents/*.toml into $CODEX_HOME/a
 { "plugins": ["/path/to/ai-development"] }
 ```
 
-See [.opencode-plugin/README.md](.opencode-plugin/README.md) for routing, guards and the sidebar. `make test-opencode` runs its offline tests (part of `make check` where node is installed); `make test-opencode-e2e` runs the live suite against real models, locally only ([.opencode-plugin/test/live/README.md](.opencode-plugin/test/live/README.md)).
+See [.opencode-plugin/README.md](.opencode-plugin/README.md) for routing, guards and the sidebar. `make test-opencode` runs its offline tests (part of `make check` where node is installed); `make test-opencode-e2e` runs the live suite against real models, locally only ([.opencode-plugin/live/README.md](.opencode-plugin/live/README.md)).
 
 ## The `aid` tool
 
