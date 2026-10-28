@@ -36,7 +36,7 @@ No skill is a user command. The model picks them up from what's being discussed,
 
 The orchestrator is never a subagent. In Claude Code it's the main conversation, which gets the `aid-orchestrate` rules at session start. In OpenCode it's the generated primary agent `aid-orchestrator`. In Codex it's the main thread, using the skill.
 
-Models are native to each harness. Claude agents carry `model:`, and a project can override any agent's model in `.claude/aid.json`. OpenCode takes models from its router config, keyed by agent name. Codex agents inherit the session model.
+Models are native to each harness. Claude agents carry `model:`, and a project can override any agent's model in `.claude/aid.json`. OpenCode agents run on the session's model unless `.opencode/aid.json` maps them to a profile. Codex agents inherit the session model.
 
 ## Guardrails (Claude Code)
 
@@ -56,18 +56,14 @@ claude --plugin-dir /path/to/ai-development
 make install-codex        # symlinks dist/codex/agents/*.toml into $CODEX_HOME/agents
 ```
 
-**OpenCode 2.x** loads `index.js`, which registers the skills in place. Agents are linked as files:
+**OpenCode 2** (2.x only) loads the repo directory as a plugin, which registers the `aid-*` agents (`aid-orchestrator` as the default primary agent) and skills itself, routes each agent's model from `.opencode/aid.json` through `aid`, and sends every tool call to `aid guard`. Nothing to symlink; `aid` must be on your PATH:
 
 ```jsonc
 // opencode.json
-{ "plugins": ["file:///path/to/ai-development"] }
+{ "plugins": ["/path/to/ai-development"] }
 ```
 
-```bash
-make install-opencode     # symlinks dist/opencode/agents/*.md into ~/.config/opencode/agents
-```
-
-Run `aid-orchestrator` as the primary agent.
+See [.opencode-plugin/README.md](.opencode-plugin/README.md) for routing, guards and the sidebar. `make test-opencode` runs its offline tests (part of `make check` where node is installed); `make test-opencode-e2e` runs the live suite against real models, locally only ([.opencode-plugin/test/live/README.md](.opencode-plugin/test/live/README.md)).
 
 ## The `aid` tool
 
