@@ -67,6 +67,23 @@ func TestEditUpdateTask(t *testing.T) {
 	contains(t, r.refused("update-task", "a", "--needs", "c"), "is done but needs `c`")
 }
 
+// A live claim freezes the task: neither another holder nor the holder itself
+// can swap the checks for something weaker and then complete it.
+func TestEditUpdateTaskRefusedUnderALiveClaim(t *testing.T) {
+	r := newRepo(t)
+	r.ok("init", "Feature")
+	r.ok("add-task", "--id", "a", "--title", "t", "--footprint", "x", "--result", "r", "--check", "false")
+	r.ok("claim-task", "a", "--holder", "oracle")
+	contains(t, r.refused("update-task", "a", "--check", "true"), `task "a" is held by "oracle"`)
+	contains(t, r.refused("update-task", "a", "--title", "x"), "release it first, then edit it")
+	t.Setenv("AID_HOLDER", "oracle")
+	contains(t, r.refused("update-task", "a", "--check", "true"), "release it first, then edit it")
+	contains(t, r.refused("complete-task", "a"), "a check failed")
+
+	r.ok("release-task", "a")
+	r.ok("update-task", "a", "--check", "true")
+}
+
 func TestEditSplitTask(t *testing.T) {
 	r := newRepo(t)
 	r.ok("init", "Feature")

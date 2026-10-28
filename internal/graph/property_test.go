@@ -113,7 +113,7 @@ func TestPropertyRandomOperations(t *testing.T) {
 			case 3:
 				needs := someIDs(r, g, 3)
 				name = fmt.Sprintf("update %s needs %v", id, needs)
-				op = func() error { _, err := g.UpdateTask(id, Edit{Needs: &needs}); return err }
+				op = func() error { _, err := g.UpdateTask(id, Edit{Needs: &needs}, at); return err }
 			case 4:
 				parts := someIDs(r, g, 3)
 				name = fmt.Sprintf("split %s into %v", id, parts)
@@ -175,7 +175,7 @@ func TestPropertyOperationsSucceedSometimes(t *testing.T) {
 			try("release", err)
 			_, err = g.Block(x.ID, "stuck", x.State.Claim.Holder, now)
 			try("block", err)
-			_, err = g.UpdateTask(x.ID, Edit{Title: strp("renamed")})
+			_, err = g.UpdateTask(x.ID, Edit{Title: strp("renamed")}, now)
 			try("update", err)
 			_, err = g.Drop(x.ID, "gone", nil, now)
 			try("drop", err)

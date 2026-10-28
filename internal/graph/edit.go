@@ -23,17 +23,22 @@ func (e Edit) Empty() bool {
 }
 
 // UpdateTask applies e to the task with id and returns the updated task. A
-// dropped task is a record and can't be edited. The edit is made on a copy
+// dropped task is a record and can't be edited, and a task under a live claim
+// can't be edited by anyone, its holder included, so the definition of done a
+// holder is working to never changes under it. The edit is made on a copy
 // and adopted only if the whole graph still validates (no cycle, no done or
 // in-progress task gaining a need that isn't done), so every refusal leaves g as it
 // was.
-func (g *Graph) UpdateTask(id string, e Edit) (Task, error) {
+func (g *Graph) UpdateTask(id string, e Edit, now time.Time) (Task, error) {
 	i, err := g.find(id)
 	if err != nil {
 		return Task{}, err
 	}
 	if g.Tasks[i].State.Status == Dropped {
 		return Task{}, fmt.Errorf("task %q is dropped; a dropped task stays as a record and isn't edited", id)
+	}
+	if live(&g.Tasks[i], now) {
+		return Task{}, fmt.Errorf("%s; release it first, then edit it", heldMsg(&g.Tasks[i]))
 	}
 	if e.Empty() {
 		return Task{}, fmt.Errorf("nothing to update: pass at least one of --title, --needs, --footprint, --result, --check")
