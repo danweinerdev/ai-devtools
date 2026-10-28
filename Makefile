@@ -2,7 +2,7 @@
 # (some distros set GOTOOLCHAIN=local). An explicit GOTOOLCHAIN still wins.
 export GOTOOLCHAIN ?= auto
 
-.PHONY: build check lint test test-go test-claude release install-aid install-codex install-opencode uninstall-codex uninstall-opencode
+.PHONY: build check lint test test-go release install-aid install-codex install-opencode uninstall-codex uninstall-opencode
 
 # Regenerate every harness artifact from skills/ and agents/.
 build:
@@ -10,26 +10,22 @@ build:
 
 # THE gate: frontmatter + cross-reference validation, generated files match
 # sources, lint is clean, and every test passes.
-check: lint test-go test-claude
+check: lint test-go
 	@go run ./tools/plugin-compiler --check
 
 # Go lint: formatting and staticcheck, pinned and run through go run so
-# nothing needs installing. CI also runs actionlint and ruff (see ruff.toml).
+# nothing needs installing. CI also runs actionlint.
 STATICCHECK = honnef.co/go/tools/cmd/staticcheck@v0.8.2
 
 lint:
 	@test -z "$$(gofmt -l cmd internal tools)" || { echo "gofmt: unformatted files:"; gofmt -l cmd internal tools; exit 1; }
 	@go run $(STATICCHECK) ./...
 
-# Go tooling: vet and unit tests (the plugin compiler and the aid tool).
+# Go tooling: vet and unit tests (the plugin compiler, the aid tool, and its
+# Claude guardrail hooks, including a smoke run of the wired hooks.json).
 test-go:
 	@go vet ./...
 	@go test ./...
-
-# Claude guardrail hooks: unit tests plus a smoke run of the wired hooks.
-test-claude:
-	@python3 -m unittest discover -s harness/claude/tests -t harness/claude/tests
-	@python3 harness/claude/scripts/smoke_hooks.py
 
 test: check
 

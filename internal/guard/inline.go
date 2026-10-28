@@ -22,8 +22,8 @@ import (
 //     .claude/aid.json itself,
 //   - aid CLI invocations.
 //
-// The patterns are RE2. The Python original used lookaround in three places;
-// those are expressed as code: writeRedirect, grepCounting and paged.
+// The patterns are RE2, which has no lookaround; the three rules that would
+// need it are code: writeRedirect, grepCounting and paged.
 
 var searchyTools = []string{"Read", "Grep", "Glob"}
 
@@ -41,8 +41,8 @@ var (
 	// Path-shaped argument tokens: anything with a separator, plus bare
 	// capitalised words that could name an artifact directory (Plans, Specs).
 	// A token wrongly judged "not a path" only makes the guard stricter.
-	// Word characters are Unicode, as in Python: an ASCII-only class would
-	// miss `src/Ünï.go` and let the rest of the command pass as exempt.
+	// Word characters are Unicode: an ASCII-only class would miss
+	// `src/Ünï.go` and let the rest of the command pass as exempt.
 	pathToken = regexp.MustCompile(`^[~./]?[\p{L}\p{N}_.@+-]+(?:/[\p{L}\p{N}_.*?@+-]*)+/?$|^[A-Z][\p{L}\p{N}_-]*/?$`)
 
 	// Verification and inspection. The budget polices exploration: answering
@@ -85,9 +85,8 @@ var (
 	// `... | wc -l` is counting, not reading: one number however much was
 	// scanned.
 	countingPipe = regexp.MustCompile(`\|\s*(?:\w+=\S*\s+)*wc\b(?:\s+-[lcwm]+)?\s*$`)
-	// `grep -c` counts; `-l`/`-L` list file names. The Python original was
-	// this followed by a lookahead for the flag; a search needs no lookahead,
-	// so the flag is simply part of the match.
+	// `grep -c` counts; `-l`/`-L` list file names. Matching anywhere in a
+	// clause, the flag can simply be part of the match.
 	grepCounting = regexp.MustCompile("(?:^|[;&|`\\n]|\\$\\()\\s*(?:rg|grep|egrep|fgrep)\\b" +
 		`(?:\s+-\S+)*\s+-\w*[clL]`)
 	// A pipe into a pager or a filter: see paged.
@@ -110,7 +109,7 @@ var exemptRoots = [][]string{{"docs", "PRDs"}, {".aid"}, {".claude", "aid.json"}
 
 // writeRedirect: stdout redirected to a file means the command writes, it
 // doesn't explore. `2>` and `2>&1` are stderr plumbing common in real
-// searches and still count. (Python: `(?<![\d&])>|&>`.)
+// searches and still count.
 func writeRedirect(cmd string) bool {
 	if strings.Contains(cmd, "&>") {
 		return true
@@ -128,8 +127,8 @@ func writeRedirect(cmd string) bool {
 
 // paged: a listing long enough to need paging is too long to be the answer,
 // so a pipe into head, tail, less, more, or a filtering grep sinks the whole
-// command. sort, awk and cut reshape a fixed-size table and are absent.
-// (Python: a negative lookahead sparing a counting grep.)
+// command, except a counting grep. sort, awk and cut reshape a fixed-size
+// table and are absent.
 func paged(cmd string) bool {
 	for _, m := range pipeInto.FindAllStringSubmatchIndex(cmd, -1) {
 		switch cmd[m[2]:m[3]] {
@@ -388,7 +387,7 @@ func expandUser(p, home string) string {
 	return p
 }
 
-// joinPath is Python's os.path.join(cwd, p): an absolute p wins.
+// joinPath joins p onto cwd, unless p is already absolute.
 func joinPath(cwd, p string) string {
 	if filepath.IsAbs(p) {
 		return p
@@ -396,7 +395,7 @@ func joinPath(cwd, p string) string {
 	return filepath.Join(cwd, p)
 }
 
-// fnmatch is Python's fnmatch.fnmatch: `*` and `?` cross slashes, `[seq]` and
+// fnmatch is shell-style matching where `*` and `?` cross slashes; `[seq]` and
 // `[!seq]` are character classes, and everything else is literal.
 func fnmatch(name, pattern string) bool {
 	pat := []rune(pattern)

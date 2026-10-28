@@ -12,8 +12,7 @@ import (
 
 // Object is a JSON object that keeps its key order, so a hook's input can be
 // echoed back (the model override's updatedInput) exactly as it came in. A
-// repeated key keeps its first position and its last value, as Python's json
-// module does.
+// repeated key keeps its first position and its last value.
 type Object struct {
 	Keys   []string
 	Values map[string]any
@@ -66,7 +65,7 @@ func (o *Object) MarshalJSON() ([]byte, error) {
 }
 
 // parse reads one JSON value: *Object, []any, json.Number, string, bool or nil.
-// Anything after the value is an error, as it is for Python's json.loads.
+// Anything after the value is an error.
 func parse(raw []byte) (any, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
@@ -129,7 +128,7 @@ func str(v any) string {
 	return s
 }
 
-// truthy is Python's truth test on a JSON value.
+// truthy is false for null, false, 0, "", [] and {}, and true otherwise.
 func truthy(v any) bool {
 	switch v := v.(type) {
 	case nil:
@@ -149,16 +148,16 @@ func truthy(v any) bool {
 	return true
 }
 
-// display renders v the way Python's str() would in a message.
+// display renders a JSON value for a message: strings bare, the rest as JSON.
 func display(v any) string {
 	switch v := v.(type) {
 	case nil:
-		return "None"
+		return "null"
 	case bool:
 		if v {
-			return "True"
+			return "true"
 		}
-		return "False"
+		return "false"
 	case string:
 		return v
 	case json.Number:
@@ -171,8 +170,8 @@ func display(v any) string {
 	return string(b)
 }
 
-// integer reads a JSON number as an int when it's written as one (no fraction
-// or exponent, as Python's json module would give an int).
+// integer reads a JSON number as an int when it's written as one, with no
+// fraction or exponent.
 func integer(v any) (int, bool) {
 	n, ok := v.(json.Number)
 	if !ok || strings.ContainsAny(string(n), ".eE") {

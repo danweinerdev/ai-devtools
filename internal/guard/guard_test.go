@@ -293,7 +293,7 @@ func TestSensitiveMalformedRulesAndBrokenFileDeny(t *testing.T) {
 
 func TestSensitiveRejectsPatternsRE2CannotCompile(t *testing.T) {
 	f := newFixture(t)
-	// Valid in Python, but RE2 has no lookaround: refused, and the message says why.
+	// Valid PCRE, but RE2 has no lookaround: refused, and the message says why.
 	f.config(m{"sensitive": m{"rules": []any{m{"name": "x", "patterns": []any{`(?<=a)b`}}}}})
 	d := f.run("sensitive", f.spawn("aid-oracle"))
 	wantExit(t, d, 2)

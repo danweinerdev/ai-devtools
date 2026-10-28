@@ -236,8 +236,7 @@ func stringList(o *Object, key, where string, problems *[]string) []string {
 	return out
 }
 
-// closest is the allowed word most like key, if any is close enough: Python's
-// difflib.get_close_matches(key, allowed, n=1), cutoff 0.6.
+// closest is the allowed word most like key, if any scores at least 0.6.
 func closest(key string, allowed []string) string {
 	best, bestScore := "", 0.6
 	for _, a := range allowed {
