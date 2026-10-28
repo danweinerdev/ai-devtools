@@ -8,9 +8,17 @@ import (
 	"strings"
 )
 
-// policy is the routing policy printed at session start, after the
-// aid-orchestrate skill body.
-const policy = `## Routing policy (aid)
+// Policy is the routing policy for the orchestrator's context: Claude Code
+// prints it at session start after the aid-orchestrate skill body; the
+// OpenCode plugin adds it to the orchestrator's system context.
+func Policy(h Harness) string {
+	if h == OpenCode {
+		return openCodePolicy
+	}
+	return claudePolicy
+}
+
+const claudePolicy = `## Routing policy (aid)
 
 Roster roles (spawn these by name; plugin agents may appear as ` + "`ai-development:aid-<role>`" + `):
 - aid-explorer: read-only research. Evidence-backed findings, conflicts, search trails.
@@ -32,6 +40,28 @@ Project agents in .claude/agents/ are first-class routing targets; reviewer-desc
 An optional .claude/aid.json can override the model per agent; the guards apply it on spawn.
 `
 
+const openCodePolicy = `## Routing policy (aid)
+
+Roster roles (delegate to these by name with the subagent tool):
+- aid-explorer: read-only research. Evidence-backed findings, conflicts, search trails.
+- aid-mechanic: well-specified technical building. Stops on mismatch.
+- aid-oracle: high-risk or novel implementation, and independent single-lens review. A deliberate role, not an escalation fallback; delegate to it directly.
+- aid-designer: visual and UX direction and design review. No production code.
+- aid-creator: first-pass creative work, marked with its soft spots.
+- aid-craftsman: refine a working first pass into a finished one.
+
+Stay in the main loop for: the user conversation, judgement, the PRD gate, synthesis, planning, and one-shot deterministic commands whose output is the answer. Delegate discovery that reads far more than it answers.
+
+OpenCode's built-ins are blocked and replaced:
+- general -> the matching aid-* role (building: aid-mechanic; high-risk or deep review: aid-oracle; research: aid-explorer).
+- explore -> aid-explorer.
+- plan and build are primary agents, not subagents: plan's work stays in the main loop with the aid-think and aid-make-breakdown skills.
+- aid-orchestrator is the main conversation, never a subagent.
+
+Project agents in .opencode/agents/ are first-class routing targets; reviewer-described ones join Review as extra lenses. Discover them when needed.
+Models come from .opencode/aid.json (else the global ~/.config/opencode/aid.json): profiles name a provider/model, and agents maps an agent to a profile. An agent not listed there uses the session's model.
+`
+
 var frontmatter = regexp.MustCompile(`(?s)\A---\n.*?\n---\n`)
 
 // sessionStart prints the aid-orchestrate skill body, then the routing
@@ -48,7 +78,7 @@ func sessionStart(p *Object, env Env) (d Decision) {
 	if body := skillBody(env.Getenv("CLAUDE_PLUGIN_ROOT")); body != "" {
 		out.WriteString(body + "\n\n")
 	}
-	out.WriteString(policy + "\n")
+	out.WriteString(Policy(Claude) + "\n")
 	if _, err := Load(cwdOf(p, env)); err != nil {
 		var ce *ConfigError
 		if errors.As(err, &ce) {
