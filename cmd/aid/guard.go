@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -37,13 +38,14 @@ var guardHelp = map[string]string{
 func guardCmd(a *app) *cobra.Command {
 	parent := &cobra.Command{
 		Use:    "guard <name>",
-		Short:  "Claude Code guardrail hooks (run by the plugin's hooks.json)",
+		Short:  "Guardrail hooks for Claude Code (hooks.json) and OpenCode (the plugin)",
 		Hidden: true,
-		Long: "The Claude Code guardrail hooks. Each reads the hook payload on stdin and exits 0 to allow or 2 " +
-			"(reason on stderr) to deny. An invalid .claude/aid.json makes every guard that reads it deny with " +
-			"what to fix; a bug in a guard fails open; AID_GUARDS=off disables them for the session. They never " +
-			"touch .aid/.",
+		Long: "The guardrail hooks. Claude Code's read the hook payload on stdin and exit 0 to allow or 2 " +
+			"(reason on stderr) to deny; OpenCode's plugin calls opencode-tool and policy. An invalid aid.json " +
+			"makes every guard that reads it deny with what to fix; a bug in a guard fails open; AID_GUARDS=off " +
+			"disables them for the session. They never touch .aid/.",
 	}
+	parent.AddCommand(openCodeToolCmd(a), policyCmd(a))
 	for _, name := range guard.Names {
 		parent.AddCommand(&cobra.Command{
 			Use:   name,
@@ -63,4 +65,56 @@ func guardCmd(a *app) *cobra.Command {
 		})
 	}
 	return parent
+}
+
+// openCodeToolCmd is the OpenCode plugin's tool guard. Both decisions exit 0;
+// a non-zero exit is aid's own failure, and the plugin then fails open.
+func openCodeToolCmd(a *app) *cobra.Command {
+	return &cobra.Command{
+		Use:   "opencode-tool",
+		Short: "OpenCode tool guard: decide one tool call for the plugin",
+		Long: "Reads {\"tool\", \"args\", \"sessionID\", \"agent\", \"cwd\"} (an OpenCode 2 tool call; an optional " +
+			"\"agent_mode\": \"primary\"|\"subagent\" says whether the caller is a subagent) and prints " +
+			"{\"decision\": \"allow\"|\"deny\", \"reason\": \"...\"}, exit 0 either way. It runs the generic, " +
+			"sensitivity and inline-budget guards against .opencode/aid.json (else ~/.config/opencode/aid.json); " +
+			"an invalid config denies with what to fix. Exits non-zero only when aid itself fails.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			stdin, _ := io.ReadAll(cmd.InOrStdin())
+			v, err := guard.OpenCodeTool(stdin, guard.OSEnv())
+			if err != nil {
+				_, _ = fmt.Fprintf(a.err, "aid-guards: opencode-tool: %v\n", err)
+				return exitCode(1)
+			}
+			out, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintln(a.out, string(out))
+			return nil
+		},
+	}
+}
+
+// policyCmd prints the routing policy for a harness's orchestrator context.
+func policyCmd(a *app) *cobra.Command {
+	var harness string
+	cmd := &cobra.Command{
+		Use:   "policy",
+		Short: "Print the routing policy for the orchestrator's context",
+		Long: "Prints the routing policy: Claude Code's session-start text, or with --harness opencode the " +
+			"OpenCode wording the plugin adds to the orchestrator's context. No skill body: the orchestrator " +
+			"already carries aid-orchestrate.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			h, err := harnessOf(harness)
+			if err != nil {
+				return err
+			}
+			_, _ = io.WriteString(a.out, guard.Policy(h))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&harness, "harness", "claude", "claude or opencode")
+	return cmd
 }
