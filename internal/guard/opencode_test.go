@@ -80,6 +80,21 @@ func TestOpenCodeConfigPrecedence(t *testing.T) {
 		t.Fatalf("XDG: got %+v %v", cfg, err)
 	}
 
+	// A .opencode/aid.json in a parent directory is the project's too, and
+	// the nearest one wins.
+	sub := filepath.Join(f.cwd, "pkg", "deep")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.ocProject(routing("up", "anthropic/claude-sonnet-5-5", "aid-creator"))
+	if cfg, err = LoadOpenCode(sub, f.env); err != nil || cfg.Agents["aid-creator"] != "up" {
+		t.Fatalf("parent directory: got %+v %v", cfg, err)
+	}
+	writeJSON(t, filepath.Join(f.cwd, "pkg", ".opencode", "aid.json"), routing("near", "openai/gpt-x", "aid-designer"))
+	if cfg, err = LoadOpenCode(sub, f.env); err != nil || cfg.Agents["aid-designer"] != "near" || len(cfg.Agents) != 1 {
+		t.Fatalf("nearest: got %+v %v", cfg, err)
+	}
+
 	// The project file wins, whole: no merging with the global one.
 	f.ocProject(routing("p", "anthropic/claude-opus-5-5", "aid-mechanic"))
 	cfg, err = LoadOpenCode(f.cwd, f.env)
@@ -257,6 +272,9 @@ func TestOpenCodeToolInlineBudget(t *testing.T) {
 	if !strings.Contains(v.Reason, ".opencode/aid.json") {
 		t.Fatalf("the budget message should name the OpenCode config: %q", v.Reason)
 	}
+	// A new user turn starts a fresh budget.
+	v, err = search("turnID", "t2")
+	wantVerdict(t, v, err, "allow", "")
 
 	// A subagent's own calls are never throttled: the roster, OpenCode's
 	// generic subagents, or whatever agent_mode says.

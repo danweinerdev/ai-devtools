@@ -107,6 +107,9 @@ func claudePayload(in *Object, tool string) *Object {
 	p.Set("tool_input", ti)
 	p.Set("cwd", in.Get("cwd"))
 	p.Set("session_id", in.Get("sessionID"))
+	// The plugin bumps turnID on each user prompt, so the inline budget is
+	// per turn as on Claude; without it the budget spans the session.
+	p.Set("prompt_id", in.Get("turnID"))
 	if openCodeSubagent(in) {
 		p.Set("agent_type", str(in.Get("agent"))) // a worker's calls are never throttled
 	}
