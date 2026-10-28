@@ -31,14 +31,16 @@ flowchart LR
 
 ## Stages
 
-| Stage | Skill | Result |
-|---|---|---|
-| Breakdown | aid-make-breakdown | the reviewed breakdown text, then the task graph built from it |
-| Delegate | aid-make-delegate | each ready task claimed and routed with a complete brief |
-| Build | aid-make-build | the change, inside the brief's scope |
-| Verify | aid-make-verify | the task's checks passing, output captured; the task `done` |
-| Review | aid-make-review | intent-isolated lenses at the completion gates |
-| Rebuild | aid-make-rebuild | a presentable feature-by-feature history |
+| Stage | Skill | Works from | Result |
+|---|---|---|---|
+| Breakdown | aid-make-breakdown | a PRD with no open question gating this piece | the reviewed breakdown text, then the task graph built from it |
+| Delegate | aid-make-delegate | the graph's ready frontier | each ready task claimed and routed with a complete brief |
+| Build | aid-make-build | a brief | the change, inside the brief's scope |
+| Verify | aid-make-verify | the change and the task's checks | the task's checks passing, output captured; the task `done` |
+| Review | aid-make-review | a complete feature, and each lens's inputs | intent-isolated lenses at the completion gates |
+| Rebuild | aid-make-rebuild | reviewed work whose state items are resolved (aid-learn-history) | a presentable feature-by-feature history |
+
+These stages are a toolbox, not a map. Pick the one the situation calls for, skip or revisit any of them, and when the next step isn't obvious, suggest one or ask the user what they want to do. "Works from" says what each stage needs: skipping the stage that produces it is a choice to make knowingly, and to say out loud. Order that matters for correctness is enforced by `aid`, not by this table: a task is `done` only when its checks pass, and `finish` refuses while anything is open.
 
 Delegate, Build, and Verify repeat over the ready frontier (aid-graph) until the feature is complete. Independent tasks run in parallel; tasks whose footprints overlap run in sequence.
 

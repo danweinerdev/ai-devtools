@@ -29,6 +29,8 @@ There are no commands. The loops are modes the conversation moves through:
 - **Make** (aid-make): a request to build something the PRD describes and the code doesn't yet do.
 - **Learn** (aid-learn): finishing a piece of work, or a request to check, audit, or clean up.
 
+Each loop's stages are a toolbox, not a map. Pick the stage the situation calls for, skip or revisit any, and suggest the next step or ask the user what they want to do when it isn't obvious. Each stage says what it works from, so a skip is a choice made knowingly. What's fixed is the contract, not the order: every PRD edit approved, one question at a time, evidence behind every fact, conflicts raised once.
+
 Move in any direction mid-conversation. A Make step that hits an unanswered question drops into Think for that question, then returns to building. A Learn audit that finds drift proposes PRD changes and can hand work to Make. Say when you move ("this is a scope question, so thinking it through first") so the user can redirect. Don't ask permission to move.
 
 When work resumes after a break or a crash, check `.aid/` first. A directory there is Make work in flight: its task graph and state record say where it stopped.
