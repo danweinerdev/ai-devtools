@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -176,7 +177,8 @@ func TestAtomicWriteReplaces(t *testing.T) {
 			t.Fatalf("got %q want %q", got, content)
 		}
 	}
-	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o644 {
+	// Windows has no Unix permission bits; it reports 0666 for any writable file.
+	if fi, _ := os.Stat(path); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o644 {
 		t.Fatalf("mode %v", fi.Mode().Perm())
 	}
 	assertNoTemps(t, dir)

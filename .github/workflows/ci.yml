@@ -1,5 +1,6 @@
 # The make check gate on Linux, macOS and Windows. Steps are spelled out
-# rather than run through make, so Windows needs no GNU make.
+# rather than run through make, so Windows needs no GNU make, and each runs
+# even after an earlier one fails, so one run reports every gate.
 name: ci
 
 on:
@@ -40,16 +41,21 @@ jobs:
           python-version: "3.x"
 
       - name: Generated files match sources
+        if: success() || failure()
         run: go run ./tools/plugin-compiler --check
 
       - name: go vet
+        if: success() || failure()
         run: go vet ./...
 
       - name: go test (race detector)
+        if: success() || failure()
         run: go test -race ./...
 
       - name: Guard tests
+        if: success() || failure()
         run: python -m unittest discover -s harness/claude/tests -t harness/claude/tests
 
       - name: Guard smoke run
+        if: success() || failure()
         run: python harness/claude/scripts/smoke_hooks.py

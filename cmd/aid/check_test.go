@@ -20,7 +20,7 @@ func batchRepo(t *testing.T) *repo {
 	r.ok("init", "Feature")
 	r.ok("add-task", "--id", "store", "--title", "s", "--footprint", "internal/store/", "--result", "r", "--check", "true")
 	r.ok("add-task", "--id", "cli", "--title", "c", "--footprint", "cmd/aid", "--result", "r",
-		"--check", "true", "--check", "echo cli-broken; exit 4")
+		"--check", "true", "--check", "echo cli-broken && exit 4")
 	r.ok("add-task", "--id", "docs", "--title", "d", "--footprint", "README.md", "--result", "r", "--check", "true")
 	return r
 }
@@ -28,7 +28,7 @@ func batchRepo(t *testing.T) *repo {
 func TestCheckFullBatch(t *testing.T) {
 	r := batchRepo(t)
 	errOut := r.refused("check")
-	for _, want := range []string{"pass  store (todo)", "FAIL  cli (todo)", "FAIL  echo cli-broken; exit 4", "cli-broken",
+	for _, want := range []string{"pass  store (todo)", "FAIL  cli (todo)", "FAIL  echo cli-broken && exit 4", "cli-broken",
 		"pass  docs (todo)", "2 passed, 1 failed"} {
 		contains(t, errOut, want)
 	}
