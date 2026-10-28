@@ -17,6 +17,8 @@ func TestMain(m *testing.M) {
 	// A developer's AID_HOLDER would change every default-holder outcome;
 	// tests that want one set it on the child explicitly.
 	os.Unsetenv("AID_HOLDER")
+	// Likewise AID_GUARDS=off would turn every guard test into a pass.
+	os.Unsetenv("AID_GUARDS")
 	dir, err := os.MkdirTemp("", "aid-bin-")
 	if err != nil {
 		panic(err)

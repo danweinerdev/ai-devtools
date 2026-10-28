@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -37,6 +38,12 @@ func run(ctx context.Context, a *app, args []string) int {
 	err := root.ExecuteContext(ctx)
 	if err == nil {
 		return 0
+	}
+	// A command that has already written its own output and only needs an
+	// exit code (the guards' exit 2 is a deny).
+	var code exitCode
+	if errors.As(err, &code) {
+		return int(code)
 	}
 	fmt.Fprintln(a.err, "aid: "+err.Error())
 	if a.json {
