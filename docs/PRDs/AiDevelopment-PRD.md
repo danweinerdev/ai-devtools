@@ -70,7 +70,7 @@ There are no commands. The loops are modes the conversation moves through, enter
 
 Moves happen mid-conversation, in any direction. A Make step that hits an unanswered question drops into Think for that question, then returns to building. A Learn audit that finds drift proposes PRD changes and can hand work to Make. The orchestrator says when it moves ("this is a scope question, so thinking it through first") so the user can redirect. It doesn't ask permission to move.
 
-Each loop is an entry skill that sequences its stages, and each stage is its own skill. None of them are user commands: the model picks them up from what's being discussed.
+Each loop is an entry skill, and each stage is its own skill. The stages are a toolbox, not a map: the orchestrator picks the one the situation calls for, skips or revisits any of them, and can suggest the next step or ask the user what they want to do instead. Each stage states what it works from (Challenge works from facts, so it's thinnest without Explore's evidence), so skipping one is an informed choice rather than an oversight. What's fixed is the contract, not the order: every PRD edit approved by the user, one question at a time, evidence behind every fact, conflicts raised once. Where order matters for correctness, the `aid` tool enforces it (a task is `done` only when its checks pass), not a sequence of skills. None of the skills are user commands: the model picks them up from what's being discussed.
 
 ### The PRD contract
 

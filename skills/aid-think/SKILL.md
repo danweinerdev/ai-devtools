@@ -23,14 +23,14 @@ The output is never "a plan the AI picked". It's the user's decisions, written i
 
 ## Stages
 
-| Stage | Skill | Produces |
-|---|---|---|
-| Explore | aid-think-explore | a fact sheet: claims with evidence |
-| Challenge | aid-think-challenge | conflicts, contradictions, gaps, hidden scope, risk |
-| Clarify | aid-think-clarify | the user's answers, one question at a time |
-| Choose | aid-think-choose | PRD change fragments and open questions |
+| Stage | Skill | Works from | Produces |
+|---|---|---|---|
+| Explore | aid-think-explore | the question, the PRD, the code | a fact sheet: claims with evidence |
+| Challenge | aid-think-challenge | Explore's fact sheet (or, for the adversarial PRD challenge, the PRD and its lenses' inputs) | conflicts, contradictions, gaps, hidden scope, risk |
+| Clarify | aid-think-clarify | Challenge's ranked list, or any open question | the user's answers, one question at a time |
+| Choose | aid-think-choose | the user's answers | PRD change fragments and open questions |
 
-Stages can be revisited in any order. An answer in Clarify often sends you back to Explore.
+These stages are a toolbox, not a map. Pick the one the situation calls for, skip or revisit any of them, and when the next step isn't obvious, suggest one or ask the user what they want to do. "Works from" says what each stage needs: skipping the stage that produces it is a choice to make knowingly, and to say out loud. An answer in Clarify often sends you back to Explore. What doesn't bend is the ground rules below.
 
 ## Ground rules: the judgement engine
 
