@@ -14,14 +14,14 @@ Not counted:
 
 Config: `.claude/aid.json` `{"guards": {"inline_budget": 20, "exempt_verification": true}}`.
 """
-import json
+import contextlib
 import os
 import re
 import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import router_config as rc  # noqa: E402
+import router_config as rc
 
 SEARCHY_TOOLS = {"Read", "Grep", "Glob"}
 # a searchy word counts at any command position (start, or after ; && || | ` $( or
@@ -299,10 +299,8 @@ def main():
         # A foreground dispatch cannot be raced, so it resets the budget; a
         # background one returns control at once, so the counter keeps climbing.
         if not tool_input.get("run_in_background", True):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(counter_path(payload))
-            except OSError:
-                pass
         return 0
     if tool not in SEARCHY_TOOLS:
         if tool != "Bash":
@@ -323,8 +321,9 @@ def main():
 
     path = counter_path(payload)
     try:
-        count = int(open(path).read())
-    except Exception:
+        with open(path) as f:
+            count = int(f.read())
+    except (OSError, ValueError):
         count = 0
     count += 1
     try:

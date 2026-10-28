@@ -12,7 +12,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import router_config as rc  # noqa: E402
+import router_config as rc
 
 
 def main():

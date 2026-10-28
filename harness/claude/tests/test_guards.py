@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 import uuid
+from typing import ClassVar
 
 HOOKS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "hooks")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HOOKS)))
@@ -16,7 +17,7 @@ def run(hook, payload, env=None, raw=None):
     return subprocess.run(
         [sys.executable, os.path.join(HOOKS, hook)],
         input=raw if raw is not None else json.dumps(payload),
-        text=True, capture_output=True, env=full)
+        text=True, capture_output=True, env=full, check=False)
 
 
 def spawn(subagent_type=None, cwd=None, **extra):
@@ -77,9 +78,9 @@ class GenericGuard(unittest.TestCase):
             self.assertEqual(run("guard_generic.py", None, raw=raw).returncode, 0)
 
     def test_internal_exception_fails_open(self):
-        code = ("import sys; sys.path.insert(0, %r); import router_config as rc; "
-                "sys.exit(rc.run(lambda: 1/0))" % HOOKS)
-        p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        code = (f"import sys; sys.path.insert(0, {HOOKS!r}); import router_config as rc; "
+                "sys.exit(rc.run(lambda: 1/0))")
+        p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
         self.assertEqual(p.returncode, 0)
         self.assertIn("fail open", p.stderr)
 
@@ -125,7 +126,7 @@ class ModelGuard(Project):
 
 
 class Sensitive(Project):
-    RULE = {"rules": [{"name": "pii", "patterns": [r"SECRET-\d+"], "paths": ["*.pem"],
+    RULE: ClassVar[dict] = {"rules": [{"name": "pii", "patterns": [r"SECRET-\d+"], "paths": ["*.pem"],
                        "allow_agents": ["aid-oracle"]}]}
 
     def test_off_without_config(self):

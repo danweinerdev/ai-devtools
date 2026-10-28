@@ -3,4 +3,3 @@
 dist/** linguist-generated=true
 agents-manifest.json linguist-generated=true
 skills-manifest.json linguist-generated=true
-integrations/model-router/*.json linguist-generated=true

@@ -26,7 +26,7 @@ def fail(msg):
 
 def run(command, stdin, cwd, env=None):
     return subprocess.run(["bash", "-c", command], input=stdin, text=True, capture_output=True,
-                          cwd=cwd, timeout=30,
+                          cwd=cwd, timeout=30, check=False,
                           env={**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT, **(env or {})})
 
 
@@ -53,7 +53,10 @@ def main():
                 if p.returncode not in (0, 2) or "Traceback" in p.stderr:
                     fail(f"{label} exit {p.returncode} on {obj!r}: {p.stderr[-200:]}")
         agent = [c for ev, m, c in hooks if m == "Agent|Task"]
-        spawn = lambda t: json.dumps({"tool_name": "Agent", "cwd": cwd, "tool_input": {"subagent_type": t, "prompt": "p"}})
+
+        def spawn(t):
+            return json.dumps({"tool_name": "Agent", "cwd": cwd, "tool_input": {"subagent_type": t, "prompt": "p"}})
+
         if not any(run(c, spawn("general-purpose"), cwd).returncode == 2 for c in agent):
             fail("general-purpose spawn was not denied")
         if any(run(c, spawn("ai-development:aid-oracle"), cwd).returncode != 0 for c in agent):
