@@ -141,7 +141,7 @@ Make closes with a **rebuild** once the changes are complete. Building leaves a 
 | Claude Code | `.claude-plugin/plugin.json` | The plugin manifest. `skills/` and `agents/` are discovered from the root. |
 | Codex | `.codex-plugin/plugin.json` | The manifest with `"skills": "./skills/"`. Agents can't be declared in a Codex plugin, so they install as files. |
 | OpenCode | `index.js`, `package.json` | The V2 plugin entry (`setup` registers skills in place). Agents install as files. |
-| Claude guardrails | `harness/claude/` | Hooks (`hooks.json`) and the routing policy injected at session start. Wired in through `.claude-plugin/plugin.json` `hooks`. The guards are Python today. Once the `aid` binary ships, they move into it as `aid guard <name>` subcommands with Go tests, and the hooks need `aid` installed. A missing binary makes the hooks error, which the harness treats as non-blocking, so the guards fail open. |
+| Claude guardrails | `harness/claude/`, `internal/guard/` | `hooks.json`, wired in through `.claude-plugin/plugin.json` `hooks`, runs `aid guard <name>` for each guard and for the routing policy injected at session start. The guards live in the `aid` binary with Go tests, so the plugin has no Python or other runtime dependency; the hooks need `aid` on the PATH. A missing binary makes the hooks error, which the harness treats as non-blocking, so the guards fail open until `aid` is installed. |
 | OpenCode guardrails | `harness/opencode/` | The model router, ported to the V2 plugin API (planned). |
 | Installer | `scripts/install.sh`, `make install-*` | Symlinks generated agents into `$CODEX_HOME/agents` or `~/.config/opencode/agents`. |
 
