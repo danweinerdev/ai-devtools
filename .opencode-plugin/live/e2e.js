@@ -414,7 +414,9 @@ export async function withRowDeadline(timeoutMs, runSignal, fn) {
   const interrupted = () => controller.abort(stableError("INTERRUPTED"))
   runSignal?.addEventListener("abort", interrupted, { once: true })
   if (runSignal?.aborted) interrupted()
-  const deadline = timer(timeoutMs, () => controller.abort(stableError("TIMEOUT")))
+  // A referenced timer: the deadline must keep the process alive until it fires
+  // or the row ends (an unref'd one lets Node exit while a row only awaits).
+  const deadline = setTimeout(() => controller.abort(stableError("TIMEOUT")), timeoutMs)
   try { return await fn(controller.signal) }
   finally { clearTimeout(deadline); runSignal?.removeEventListener("abort", interrupted) }
 }
