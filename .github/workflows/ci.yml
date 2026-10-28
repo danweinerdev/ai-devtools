@@ -35,6 +35,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The OpenCode plugin's offline tests run on node's built-in runner.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Generated files match sources
         if: success() || failure()
         run: go run ./tools/plugin-compiler --check
@@ -60,3 +65,9 @@ jobs:
       - name: go test (race detector)
         if: success() || failure()
         run: go test -race ./...
+
+      # Offline only: the live suite (make test-opencode-e2e) calls real models
+      # and never runs in CI.
+      - name: OpenCode plugin tests
+        if: success() || failure()
+        run: node --test ".opencode-plugin/test/*.test.js"
