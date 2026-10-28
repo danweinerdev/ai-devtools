@@ -288,6 +288,33 @@ class Inline(Project):
         self.assertEqual(self.call(pattern="x").returncode, 2)
 
 
+class Launcher(unittest.TestCase):
+    """hooks/py picks the first Python that runs, as on Windows, where `python3` can be a stub."""
+
+    def launch(self, *fakes):
+        with tempfile.TemporaryDirectory() as bindir:
+            for name, script in fakes:
+                path = os.path.join(bindir, name)
+                with open(path, "w") as f:
+                    f.write("#!/bin/sh\n" + script + "\n")
+                os.chmod(path, 0o755)
+            env = {"PATH": bindir + os.pathsep + "/usr/bin" + os.pathsep + "/bin"}
+            return subprocess.run(["bash", os.path.join(HOOKS, "py"), "-c", "print('ran')"],
+                                  capture_output=True, text=True, env=env, check=False)
+
+    @unittest.skipIf(sys.platform == "win32", "uses POSIX shell fakes")
+    def test_skips_a_broken_python3_for_a_working_python(self):
+        real = sys.executable
+        p = self.launch(("python3", "exit 1"), ("python", f'exec "{real}" "$@"'))
+        self.assertEqual((p.returncode, p.stdout.strip()), (0, "ran"), p.stderr)
+
+    @unittest.skipIf(sys.platform == "win32", "uses POSIX shell fakes")
+    def test_no_working_python_is_reported(self):
+        p = self.launch(("python3", "exit 1"), ("python", "exit 9009"))
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("no working Python", p.stderr)
+
+
 class SessionStart(unittest.TestCase):
     def test_prints_policy_without_skill_and_with_skill(self):
         with tempfile.TemporaryDirectory() as plugin:

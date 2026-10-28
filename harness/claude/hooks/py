@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Runs a guard with the first Python that actually works. Windows often has a
+# `python3` that's only a Store stub (on PATH, but it prints nothing and fails)
+# and the real interpreter as `python`, so each candidate is tried, not just
+# looked up. Claude Code runs hooks through bash on every OS, Git Bash on Windows.
+for py in python3 python; do
+	if "$py" -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1; then
+		exec "$py" "$@"
+	fi
+done
+echo "aid-guards: no working Python 3.10+ (tried python3, python); the guards are off until one is on PATH." >&2
+exit 1
