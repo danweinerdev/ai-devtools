@@ -22,12 +22,13 @@ Requirements:
 - An `aid.json` with profiles for the agents you want proved. It's never modified: the suite copies it into a scratch project, adds a sentinel agent (routed like the first mapped subagent, to prove the scratch config is the one loaded) and a sensitivity rule for the guard row.
 
 ```sh
+make test-opencode-e2e    # the aid.json the plugin uses: .opencode/aid.json here or above, else ~/.config/opencode/aid.json
 AID_E2E_CONFIG=/path/to/aid.json make test-opencode-e2e
 AID_E2E_CONFIG=/path/to/aid.json make test-opencode-e2e E2E_ARGS="--agents aid-oracle,guard --keep"
 node .opencode-plugin/live/e2e.js --config /path/to/aid.json --opencode /path/to/opencode
 ```
 
-- `--config PATH` (or `AID_E2E_CONFIG`): the aid.json to prove.
+- `--config PATH` (or `AID_E2E_CONFIG`): the aid.json to prove. Without either, the suite proves the one the plugin would use, as `aid config --harness opencode` resolves it.
 - `--agents all|ID,...`: rows to run (`aid-orchestrator`, any `aid-*` subagent, `guard`). Include a subagent with `aid-orchestrator`: its evidence comes from a worker's parent session.
 - `--keep`: keep the scratch project even on success (failed and unverified runs keep it automatically).
 - `--opencode PATH`: the OpenCode executable.

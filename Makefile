@@ -39,7 +39,7 @@ test-opencode:
 	fi
 
 # The OpenCode 2 live suite: real model calls against a private OpenCode
-# server, driven by your aid.json (AID_E2E_CONFIG=path/to/aid.json). Local
+# server, driven by the aid.json the plugin uses (or AID_E2E_CONFIG=path/to/aid.json). Local
 # only; never part of check or CI. See .opencode-plugin/live/README.md.
 test-opencode-e2e:
 	@node .opencode-plugin/live/e2e.js $(E2E_ARGS)
