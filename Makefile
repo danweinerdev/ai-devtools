@@ -2,7 +2,7 @@
 # (some distros set GOTOOLCHAIN=local). An explicit GOTOOLCHAIN still wins.
 export GOTOOLCHAIN ?= auto
 
-.PHONY: build check lint test test-go test-opencode test-opencode-e2e release install-aid install-codex uninstall-codex
+.PHONY: build check lint test test-go test-opencode test-opencode-e2e test-release release install-aid install-codex uninstall-codex bump-patch bump-minor bump-major
 
 # Regenerate every harness artifact from skills/ and agents/.
 build:
@@ -10,7 +10,7 @@ build:
 
 # THE gate: frontmatter + cross-reference validation, generated files match
 # sources, lint is clean, and every test passes.
-check: lint test-go test-opencode
+check: lint test-go test-opencode test-release
 	@go run ./tools/plugin-compiler --check
 
 # Go lint: formatting and staticcheck, pinned and run through go run so
@@ -44,6 +44,17 @@ test-opencode:
 test-opencode-e2e:
 	@node .opencode-plugin/live/e2e.js $(E2E_ARGS)
 
+# The release flow's tests: bump-version.py driven end to end in throwaway git
+# repos, so committing and tagging are exercised without cutting a release
+# here. Skipped with a notice where python3 isn't installed (the bump targets
+# need it too); CI has it.
+test-release:
+	@if command -v python3 >/dev/null 2>&1; then \
+		python3 -m unittest discover -s tests -p "test_*.py"; \
+	else \
+		echo "test-release: skipped, python3 is not installed"; \
+	fi
+
 # Release builds of aid: build/<os>-<arch>/aid (aid.exe on Windows). Static
 # (no cgo), stripped of symbols and DWARF, and without local paths. Go has no
 # LTO switch: its linker already sees the whole program and drops dead code.
@@ -71,3 +82,16 @@ install-codex: check
 
 uninstall-codex:
 	@scripts/install.sh codex --uninstall
+
+# Version bumps. bump-version.py moves the version in all three manifests, runs
+# `make build` and `make check`, then commits vX.Y.Z and creates the annotated
+# tag. The whole suite runs inside it before anything is written, so no gate is
+# duplicated here. Never pushes; see AGENTS.md, Versioning.
+bump-patch:
+	@python3 bump-version.py patch
+
+bump-minor:
+	@python3 bump-version.py minor
+
+bump-major:
+	@python3 bump-version.py major

@@ -40,6 +40,13 @@ jobs:
         with:
           node-version: "22"
 
+      # The release flow's tests need python3 and a GNU make (which drives the
+      # script's own nested make calls), so they run on Linux only.
+      - uses: actions/setup-python@v5
+        if: runner.os == 'Linux'
+        with:
+          python-version: "3.12"
+
       - name: Generated files match sources
         if: success() || failure()
         run: go run ./tools/plugin-compiler --check
@@ -71,3 +78,9 @@ jobs:
       - name: OpenCode plugin tests
         if: success() || failure()
         run: node --test ".opencode-plugin/test/*.test.js"
+
+      # bump-version.py in throwaway git repos. Linux only: it shells out to
+      # make, and GNU make is guaranteed there.
+      - name: Release flow tests
+        if: runner.os == 'Linux' && (success() || failure())
+        run: make test-release
