@@ -78,6 +78,23 @@ export function primarySessionEvidence(session, messages) {
   return { sources, notes }
 }
 
+/** Same provider, model and variant ("default" and absent are the same). */
+export function sameModel(left, right) {
+  const a = modelTuple(left)
+  const b = modelTuple(right)
+  return a.valid && b.valid && a.providerID === b.providerID && a.modelID === b.modelID && a.variant === b.variant
+}
+
+/**
+ * Routing is only unprovable when the routed model is the one an unrouted
+ * agent would get anyway: the session model of the parent that dispatched it.
+ * Another agent sharing the model doesn't matter. Returns the code to add, or
+ * null when the models differ or the parent's model is unknown.
+ */
+export function distinctFromDefault(expected, parentModel) {
+  return sameModel(expected, parentModel) ? "MODEL_NOT_DISTINCT" : null
+}
+
 export function compareModels(expected, sources) {
   const result = { failed: false, incomplete: false }
   const probe = { state: "PASS", categories: { model_identity: "UNVERIFIED" }, assertions: [], measured: new Set() }

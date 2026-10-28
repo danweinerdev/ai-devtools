@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { SEVERITY, compareModels, globalMark, inspectSubagentCalls, mark, measured, modelTuple, primarySessionEvidence, statusMax, summarize } from "../live/verify-models.js"
+import { SEVERITY, compareModels, distinctFromDefault, globalMark, inspectSubagentCalls, mark, measured, modelTuple, primarySessionEvidence, statusMax, sameModel, summarize } from "../live/verify-models.js"
 
 const expected = { providerID: "openai", modelID: "gpt-6-luna" }
 const observed = { providerID: "openai", id: "gpt-6-luna" }
@@ -228,4 +228,24 @@ test("primary evidence still checks a stored session model", () => {
 test("primary evidence requires assistant messages", () => {
   assert.deepEqual(primarySessionEvidence({}, [{ type: "user" }]), { sources: {}, notes: ["PARENT_ASSISTANT_MESSAGE_MISSING"] })
   assert.deepEqual(primarySessionEvidence({}, undefined), { sources: {}, notes: ["PARENT_CONTEXT_UNAVAILABLE"] })
+})
+
+test("e2e sharing a model with another agent still passes; only the parent's own model is indistinct", () => {
+  // The user's run: aid-craftsman and aid-designer both on gpt-6.1-sol:medium,
+  // every source agreeing, dispatched from a parent running gpt-6-astra.
+  const sol = { providerID: "openai", modelID: "gpt-6.1-sol", variant: "medium" }
+  const parent = { providerID: "openai", id: "gpt-6-astra" }
+  for (const agent of ["aid-craftsman", "aid-designer"]) {
+    const sources = { registry: sol, child_session_0: sol, assistant_0: { providerID: "openai", id: "gpt-6.1-sol", variant: "medium" } }
+    assert.deepEqual(compareModels(sol, sources), { state: "PASS", codes: [] }, agent)
+    assert.equal(distinctFromDefault(sol, parent), null, agent)
+  }
+  // Same model as the parent session: routing can't be told from inheriting.
+  assert.equal(distinctFromDefault({ providerID: "openai", modelID: "gpt-6-astra" }, parent), "MODEL_NOT_DISTINCT")
+  // A variant tells them apart; "default" counts as no variant.
+  assert.equal(distinctFromDefault({ providerID: "openai", modelID: "gpt-6-astra", variant: "medium" }, parent), null)
+  assert.equal(distinctFromDefault({ providerID: "openai", modelID: "gpt-6-astra" }, { ...parent, variant: "default" }), "MODEL_NOT_DISTINCT")
+  // An unknown parent model can't make a row indistinct.
+  assert.equal(distinctFromDefault(sol, undefined), null)
+  assert.equal(sameModel(sol, { providerID: "openai", id: "gpt-6.1-sol", variant: "medium" }), true)
 })
