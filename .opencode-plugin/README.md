@@ -10,7 +10,7 @@ List the repository directory under `plugins` in `opencode.json` (project or `~/
 { "plugins": ["/path/to/ai-development"] }
 ```
 
-`file:///path/to/ai-development` works too. Point it at the **directory**: OpenCode 2.2.0 refuses a file path (`configured plugin path must be a directory`). A fresh clone loads in about a second. A working checkout holding other large trees (for example `.claude/worktrees/`) has been seen to miss OpenCode's five-second activation limit (`Location plugins did not finish activating`); the cause isn't confirmed. If you hit it, load the plugin from a clean clone.
+`file:///path/to/ai-development` works too. Point it at the **directory**: OpenCode 2.2.0 refuses a file path (`configured plugin path must be a directory`). A fresh clone loads in about a second. A checkout that a code-graph daemon (`code-graph-mcp --serve`) is indexing can't be loaded: OpenCode never finishes activating it and fails after five seconds with `Location plugins did not finish activating`. Stop that daemon first (code-graph restarts it on next use), or load the plugin from a clone no daemon watches.
 
 `aid` must be on your PATH (`make install-aid`): model routing and the guards run through it. Without it the plugin still registers everything, warns, runs every agent on the session's model, and lets every tool call through.
 
