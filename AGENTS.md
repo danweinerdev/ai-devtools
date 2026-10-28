@@ -4,7 +4,7 @@ Runtime-neutral. `CLAUDE.md` imports this file, so keep a single copy.
 
 ## What this is
 
-A plugin of **skills** (`skills/aid-*/SKILL.md`) and **agents** (`agents/aid-*.md`) published unmodified to Claude Code, Codex, and OpenCode, plus per-harness guardrails (`harness/claude/`). The design is in `docs/PRDs/AiDevelopment-PRD.md`. **Read it before changing behaviour.** It follows its own contract (`skills/aid-prd/SKILL.md`): propose edits to it as change fragments and wait for the user's approval.
+A plugin of **skills** (`skills/aid-*/SKILL.md`) and **agents** (`agents/aid-*.md`) published unmodified to Claude Code, Codex, and OpenCode, plus per-harness guardrails (`harness/claude/hooks.json`, which runs `aid guard <name>` from `internal/guard/`). The design is in `docs/PRDs/AiDevelopment-PRD.md`. **Read it before changing behaviour.** It follows its own contract (`skills/aid-prd/SKILL.md`): propose edits to it as change fragments and wait for the user's approval.
 
 ## Sources vs generated
 
@@ -12,7 +12,7 @@ A plugin of **skills** (`skills/aid-*/SKILL.md`) and **agents** (`agents/aid-*.m
 |---|---|
 | `skills/**`, `agents/*.md`, `harness/**`, `config/harness.json`, `tools/`, `scripts/`, `index.js`, docs | `skills-manifest.json`, `agents-manifest.json`, `dist/**` |
 
-`make check` is the gate. Run it before claiming a change works. It fails on invalid frontmatter, unknown `aid-*` references, stale generated files, and failing Go or guard tests. Commit the regenerated files together with the source change.
+`make check` is the gate. Run it before claiming a change works. It fails on invalid frontmatter, unknown `aid-*` references, stale generated files, lint, and failing Go tests (the guards' included). Commit the regenerated files together with the source change.
 
 ## Writing rules
 
