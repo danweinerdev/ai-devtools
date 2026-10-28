@@ -10,7 +10,7 @@ A plugin of **skills** (`skills/aid-*/SKILL.md`) and **agents** (`agents/aid-*.m
 
 | Edit | Never hand-edit (run `make build`) |
 |---|---|
-| `skills/**`, `agents/*.md`, `harness/**`, `config/harness.json`, `tools/`, `scripts/`, `index.js`, `tui.tsx`, `.opencode-plugin/`, docs | `skills-manifest.json`, `agents-manifest.json`, `dist/**` |
+| `skills/**`, `agents/*.md`, `harness/**`, `config/harness.json`, `tools/`, `scripts/`, `tests/`, `bump-version.py`, `index.js`, `tui.tsx`, `.opencode-plugin/`, docs | `skills-manifest.json`, `agents-manifest.json`, `dist/**` |
 
 `make check` is the gate. Run it before claiming a change works. It fails on invalid frontmatter, unknown `aid-*` references, stale generated files, lint, and failing Go tests (the guards' included). Commit the regenerated files together with the source change.
 
@@ -35,3 +35,13 @@ A plugin of **skills** (`skills/aid-*/SKILL.md`) and **agents** (`agents/aid-*.m
 ## Versioning
 
 Version lives in `package.json`, `.claude-plugin/plugin.json`, and `.codex-plugin/plugin.json`. Bump all three together. Harnesses cache plugins by version, so a content change without a bump is invisible to users.
+
+`make bump-patch`, `bump-minor`, and `bump-major` run `bump-version.py`, which:
+
+1. refuses unless the work tree is clean — no staged, partially staged or unstaged changes and no untracked files, ignored paths aside — so the sources that get tagged are exactly the ones the gate proved, and a refusal can never cost staged-only content;
+2. refuses once the tag `vX.Y.Z` exists, when the three manifests disagree about the version, and when the version isn't a canonical `X.Y.Z` (no signs, spaces or leading zeros);
+3. runs `make check` before writing anything, so a red tree is never bumped;
+4. writes the new version to all three manifests, then runs `make build` and `make check` again, restoring the manifests if either fails;
+5. commits the manifests and any regenerated artifacts as `vX.Y.Z` and creates the annotated tag `vX.Y.Z`. It never pushes.
+
+Its tests run in throwaway git repositories (`make test-release`, part of `make check`, and Linux-only in CI); that is the only safe place to exercise the flow, because running `bump-version.py` in this checkout commits and tags. Both need `python3`.

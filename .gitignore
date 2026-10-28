@@ -5,3 +5,4 @@ node_modules/
 /tmp/
 .claude/worktrees/
 /build/
+__pycache__
