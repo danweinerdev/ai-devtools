@@ -65,7 +65,7 @@ A task's **effective** status is its status, except that an `in-progress` task w
 | `ready` | lists the frontier |
 | `show [ids…]` | no IDs: every task in file order with its effective status and needs, then a summary. With IDs: those tasks in full, including the tasks that need them |
 | `validate` | checks both files and the links between them, reporting every problem; writes nothing |
-| `finish` | succeeds only when every task is `done` or `dropped`, no claim is live, and no state item is open (aid-state); checked inside the locked write |
+| `finish` | succeeds only when the graph is non-empty, every task is `done` or `dropped`, no claim is live, and no state item is open (aid-state); checked inside the locked write |
 
 List flags (`--needs`, `--footprint`, `--into`, `--replaced-by`, `--paths`) take comma-separated values or repeat. `--check` repeats, one command per flag, because commands contain commas.
 
