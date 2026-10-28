@@ -100,9 +100,10 @@
         "security-analysis",
         "review-prd-compliance",
         "review-quality",
-        "review-fresh-eyes"
+        "review-fresh-eyes",
+        "review-prd-challenge"
       ],
-      "description": "Senior engineer for high-risk work and independent review. It implements novel or dangerous changes (concurrency, security, data migration, core algorithms, irreversible operations) and reviews work through a single isolated lens (PRD compliance, quality, or fresh eyes). Use it when being wrong is expensive, or for any review that has to be independent.",
+      "description": "Senior engineer for high-risk work and independent review. It implements novel or dangerous changes (concurrency, security, data migration, core algorithms, irreversible operations) and reviews work through a single isolated lens (PRD compliance, quality, fresh eyes, or one of the adversarial PRD challenge lenses). Use it when being wrong is expensive, or for any review that has to be independent.",
       "path": "agents/aid-oracle.md"
     }
   ]
