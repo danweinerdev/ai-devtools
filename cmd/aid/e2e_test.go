@@ -136,11 +136,11 @@ func TestSkeletonFailingCheckKeepsTaskDoing(t *testing.T) {
 	r := newRepo(t)
 	r.ok("init", "Feature")
 	r.ok("add-task", "--id", "a", "--title", "t", "--footprint", "a.go", "--result", "r",
-		"--check", "true", "--check", "echo broken; exit 3")
+		"--check", "true", "--check", "echo broken && exit 3")
 	r.ok("claim-task", "a", "--holder", "h")
 	errOut := r.refused("complete-task", "a", "--holder", "h")
 	contains(t, errOut, "stays in-progress")
-	contains(t, errOut, "FAIL  echo broken; exit 3")
+	contains(t, errOut, "FAIL  echo broken && exit 3")
 	contains(t, errOut, "broken")
 
 	// --json carries the per-check results as structured detail.
