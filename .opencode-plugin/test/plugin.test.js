@@ -210,6 +210,37 @@ test("a deny blocks the tool call with aid's reason, whatever aid's exit code", 
   }
 })
 
+test("an ask verdict waits for the user's reply through an OpenCode permission request", async () => {
+  const verdict = { decision: "ask", reason: "this `aid update-task` call removes a check of task a", task: "a" }
+  for (const reply of ["reject", "once"]) {
+    const { aid } = standardAid({ "guard opencode-tool": ok(JSON.stringify(verdict)) })
+    const { hooks, state, dispose } = await boot({ aid })
+    state.reply = reply
+    const call = hooks.tool["execute.before"]({ tool: "shell", input: { command: "aid update-task a --check true" }, sessionID: "s", agent: "aid-mechanic" })
+    if (reply === "reject") await assert.rejects(call, /The user declined: this `aid update-task` call removes a check of task a/)
+    else await call
+    assert.equal(state.asked.length, 1)
+    const asked = state.asked[0]
+    assert.equal(asked.action, "aid.definition-of-done")
+    assert.deepEqual(asked.resources, ["a"])
+    assert.equal(asked.sessionID, "s")
+    assert.equal(asked.effect, "ask", "the evaluate hook forces ask, so a saved approval never applies")
+    assert.equal(asked.message, verdict.reason)
+    await dispose()
+  }
+})
+
+test("an ask verdict blocks when this OpenCode can't ask", async () => {
+  const { aid } = standardAid({ "guard opencode-tool": ok(JSON.stringify({ decision: "ask", reason: "weakens task a", task: "a" })) })
+  const { hooks, ctx, dispose } = await boot({ aid })
+  delete ctx.permission.assert
+  await assert.rejects(
+    hooks.tool["execute.before"]({ tool: "shell", input: {}, sessionID: "s", agent: ORCHESTRATOR }),
+    /weakens task a This OpenCode can't ask for approval, so the call is blocked/,
+  )
+  await dispose()
+})
+
 test("aid failing or timing out lets the call through and is reported once", async () => {
   for (const failure of [
     { ok: false, code: 1, stdout: "", stderr: "boom", missing: false },

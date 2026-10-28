@@ -21,6 +21,7 @@ import (
 // guards apply. Every other tool passes.
 var openCodeTools = map[string]string{
 	"shell": "Bash", "read": "Read", "grep": "Grep", "glob": "Glob", "subagent": "Agent",
+	"write": "Write", "edit": "Edit", "patch": "Patch",
 }
 
 // OpenCode 2.2.0's built-in agents, as `opencode debug agents` lists them.
@@ -33,13 +34,16 @@ var (
 // roster is the aid-* specialists, which run as subagents.
 var roster = []string{"aid-explorer", "aid-mechanic", "aid-oracle", "aid-designer", "aid-creator", "aid-craftsman"}
 
-// openCodeGuards run in order; the first deny decides.
-var openCodeGuards = []func(*Object, Env) (Decision, error){genericOpenCode, sensitive, inline}
+// openCodeGuards run in order; the first deny decides, and an ask stands
+// only when none denies.
+var openCodeGuards = []func(*Object, Env) (Decision, error){genericOpenCode, sensitive, inline, definitionOfDone}
 
-// Verdict is the opencode-tool guard's answer.
+// Verdict is the opencode-tool guard's answer. For "ask" the plugin raises an
+// OpenCode permission request about Task and the call waits for the user.
 type Verdict struct {
-	Decision string `json:"decision"` // "allow" or "deny"
+	Decision string `json:"decision"` // "allow", "ask" or "deny"
 	Reason   string `json:"reason"`
+	Task     string `json:"task,omitempty"`
 }
 
 // OpenCodeTool decides one OpenCode tool call. Both decisions are a Verdict;
@@ -65,6 +69,7 @@ func OpenCodeTool(stdin []byte, env Env) (v Verdict, err error) {
 	}()
 	env.Harness = OpenCode
 	p := claudePayload(in, tool)
+	verdict := allow
 	for _, g := range openCodeGuards {
 		d, gerr := g(p, env)
 		var ce *ConfigError
@@ -77,8 +82,11 @@ func OpenCodeTool(stdin []byte, env Env) (v Verdict, err error) {
 		if d.Exit == 2 {
 			return Verdict{Decision: "deny", Reason: strings.TrimSpace(strings.TrimPrefix(d.Stderr, "aid-guards: "))}, nil
 		}
+		if d.Ask != "" {
+			verdict = Verdict{Decision: "ask", Reason: d.Ask, Task: d.Task}
+		}
 	}
-	return allow, nil
+	return verdict, nil
 }
 
 // claudePayload is the OpenCode call in the shape the Claude Code guards read:

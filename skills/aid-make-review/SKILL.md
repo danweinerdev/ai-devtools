@@ -29,18 +29,23 @@ Reviewer value comes from **intent isolation**: each lens gets only its inputs, 
 |---|---|---|
 | PRD compliance | diff + governing PRD sections | every described behaviour present and correct; behaviour the PRD doesn't describe |
 | Goal drift | the PRD's overview and goals + the built result; no behaviour sections, breakdown, or graph | whether what was built, taken as a whole, achieves what the PRD set out to do |
-| Quality | diff + surrounding code, **no** PRD or brief | correctness, safety, maintainability, over-engineering |
+| Quality | diff + surrounding code, **no** PRD or brief | correctness, safety, maintainability, over-engineering, and **weakened proof** (below) |
 | Fresh eyes | diff only | concrete failure scenarios: concurrency, retries, encoding, production failure, maintenance traps |
 | Project reviewers | what their own description asks for | their specialty |
 
 - aid-oracle is the default reviewer for the built-in lenses. aid-designer reviews UX and visual work. Dispatch the lenses in parallel, and don't pre-read their inputs into the orchestrator, because that collapses independent views into one.
+- **Weakened proof** is a quality finding of its own kind: a check that passes without proving what it did. Look in the diff's tests and in any check commands for a test deleted, skipped, or marked expected-to-fail; an assertion removed, loosened (wider tolerance, weaker matcher, `any` where a value was checked), or rewritten to match whatever the code now outputs; a test narrowed until it no longer reaches the code it names; mocks that replace the very code under test; and a check command narrowed (a `-run` filter, a smaller package list, `|| true`, an exit code swallowed).
 - Goal drift may run the feature or read its tests as well as the code: judging whether a goal was achieved often needs more than the diff.
 - When reviews can't run in isolated contexts, run them one after another and **label the review as serial**. Don't present a single pass as an independent review.
 
 ## Synthesis
+
+Start with `aid finish`'s list of tasks whose definition of done was weakened, if the work is at that gate, or `aid show` on the tasks reviewed: each weakening, with its reason, is put to the user alongside the lens findings.
 
 Findings that two or more lenses agree on are strong. Findings only one lens raised are listed separately, and fresh-eyes-only findings get particular attention. Every finding gets an outcome:
 
 - **fixed:** a new or updated task in the graph, built and verified;
 - **rejected,** with the reason;
 - **deferred:** recorded as a `finding` state item (aid-state), resolved before the work finishes.
+
+A **weakened-proof** finding is always put to the user, with the lens's evidence. The agent that built the task never resolves it, by fixing, rejecting, or deferring it on its own; the user decides which outcome it gets. That holds when the main loop did all the roles itself.

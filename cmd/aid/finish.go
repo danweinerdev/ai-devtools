@@ -20,6 +20,12 @@ type leftTask struct {
 	Holder string `json:"holder,omitempty"`
 }
 
+// weakenedTask is a task whose definition of done was weakened, with how.
+type weakenedTask struct {
+	ID      string         `json:"id"`
+	History []graph.Change `json:"history"`
+}
+
 // afterFinishScan runs at the end of each pass of finish's locked scan. Tests
 // use it to change a file mid-transaction and force a retry.
 var afterFinishScan = func() {}
@@ -29,7 +35,8 @@ func finishCmd(a *app) *cobra.Command {
 		Use:   "finish",
 		Short: "Succeed only when every task is done or dropped and nothing is open",
 		Long: "Succeed only when every task is done or dropped, no claim is live, and no state item is open. " +
-			"The check runs inside the locked write, so the answer reflects one consistent snapshot of both files.",
+			"The check runs inside the locked write, so the answer reflects one consistent snapshot of both files. " +
+			"On success it lists every task whose definition of done was weakened, with its history, for review.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w, _, err := a.open()
@@ -39,17 +46,21 @@ func finishCmd(a *app) *cobra.Command {
 			now := a.now()
 			var left []leftTask
 			var open []state.Item
+			var weakened []weakenedTask
 			done, dropped := 0, 0
 			err = w.Update(func(tx *store.Tx) error {
 				// Update re-runs this closure when a file changed under the
 				// lock, so every tally starts fresh on each run.
-				left, open, done, dropped = nil, nil, 0, 0
+				left, open, weakened, done, dropped = nil, nil, nil, 0, 0
 				defer afterFinishScan()
 				g, err := loadGraph(tx)
 				if err != nil {
 					return err
 				}
 				for _, t := range g.Tasks {
+					if len(t.History) > 0 {
+						weakened = append(weakened, weakenedTask{ID: t.ID, History: t.History})
+					}
 					switch t.State.Status {
 					case graph.Done:
 						done++
@@ -110,8 +121,20 @@ func finishCmd(a *app) *cobra.Command {
 					detail: map[string]any{"tasks": left, "items": open},
 				}
 			}
-			return a.emit(map[string]int{"done": done, "dropped": dropped},
-				fmt.Sprintf("finished: %d done, %d dropped", done, dropped))
+			text := fmt.Sprintf("finished: %d done, %d dropped", done, dropped)
+			if len(weakened) > 0 {
+				var b strings.Builder
+				fmt.Fprintf(&b, "\n%d task(s) had their definition of done weakened; review each:\n", len(weakened))
+				for _, w := range weakened {
+					fmt.Fprintf(&b, "  %s\n", w.ID)
+					writeHistory(&b, w.History, "    ")
+				}
+				text += strings.TrimRight(b.String(), "\n")
+			}
+			if weakened == nil {
+				weakened = []weakenedTask{}
+			}
+			return a.emit(map[string]any{"done": done, "dropped": dropped, "weakened": weakened}, text)
 		},
 	}
 }

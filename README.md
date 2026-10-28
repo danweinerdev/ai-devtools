@@ -40,7 +40,7 @@ Models are native to each harness. Claude agents carry `model:`, and a project c
 
 ## Guardrails (Claude Code)
 
-`harness/claude/hooks.json` wires the hooks into Claude Code; each runs `aid guard <name>`, so **`aid` must be on your PATH** (see below). If it isn't, the hooks error and Claude Code carries on without them. They block generic delegation (`general-purpose`, `Explore`, `Plan`), cap inline exploration with a pointer to `aid-explorer`, apply per-project model overrides, and optionally gate sensitive content. Their settings live in `.claude/aid.json` (`models`, `guards`, `sensitive`). The file is validated strictly: an invalid one is reported at session start, and the guards deny with what to fix until it is. Set `AID_GUARDS=off` to disable them for a session. Sensitivity `patterns` are RE2 regular expressions (no lookaround or backreferences).
+`harness/claude/hooks.json` wires the hooks into Claude Code; each runs `aid guard <name>`, so **`aid` must be on your PATH** (see below). If it isn't, the hooks error and Claude Code carries on without them. They block generic delegation (`general-purpose`, `Explore`, `Plan`), cap inline exploration with a pointer to `aid-explorer`, apply per-project model overrides, ask you before any `aid update-task` that weakens a task's definition of done (and deny direct edits of `.aid/` graph and state files), and optionally gate sensitive content. Their settings live in `.claude/aid.json` (`models`, `guards`, `sensitive`). The file is validated strictly: an invalid one is reported at session start, and the guards deny with what to fix until it is. Set `AID_GUARDS=off` to disable them for a session. Sensitivity `patterns` are RE2 regular expressions (no lookaround or backreferences).
 
 ## Install
 

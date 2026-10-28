@@ -170,8 +170,8 @@ func TestGuardSmokeWiredHooks(t *testing.T) {
 		t.Fatal(err)
 	}
 	hooks := wiredHooks(t, root)
-	if len(hooks) != 5 {
-		t.Fatalf("want 5 wired hooks, got %d", len(hooks))
+	if len(hooks) != 6 {
+		t.Fatalf("want 6 wired hooks, got %d", len(hooks))
 	}
 	bin := `"` + filepath.ToSlash(aidBin) + `"`
 	cwd := t.TempDir()

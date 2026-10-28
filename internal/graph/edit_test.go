@@ -28,21 +28,21 @@ func wantEditErr(t *testing.T, err error, want string) {
 func TestUpdateChangesOnlyGivenFields(t *testing.T) {
 	g := graphOf(task("a", Done), task("b", Todo))
 	before := g.Tasks[1]
-	got, err := g.UpdateTask("b", Edit{Title: strp("new title"), Checks: listp("go test ./x", "go vet ./x")}, now)
+	got, err := g.UpdateTask("b", Edit{Title: strp("new title"), Checks: listp("go vet ./x", "go test ./internal/b")}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Title != "new title" || !slices.Equal(got.Done.Checks, []string{"go test ./x", "go vet ./x"}) {
+	if got.Title != "new title" || !slices.Equal(got.Done.Checks, []string{"go vet ./x", "go test ./internal/b"}) {
 		t.Fatalf("not applied: %+v", got)
 	}
 	if got.Done.Result != before.Done.Result || !slices.Equal(got.Footprint, before.Footprint) ||
-		!slices.Equal(got.Needs, before.Needs) || got.State != before.State {
+		!slices.Equal(got.Needs, before.Needs) || got.State != before.State || got.History != nil {
 		t.Fatalf("untouched fields changed: %+v", got)
 	}
 	if g.Tasks[1].Title != "new title" {
 		t.Fatal("graph not updated in place")
 	}
-	if _, err := g.UpdateTask("a", Edit{Needs: listp(), Footprint: listp("cmd/aid/"), Result: strp("r")}, now); err != nil {
+	if _, err := g.UpdateTask("a", Edit{Needs: listp(), Footprint: listp("cmd/aid/"), Result: strp("r"), By: "main", Reason: "reworded"}, now); err != nil {
 		t.Fatal(err)
 	}
 	mustValid(t, g)
@@ -81,6 +81,93 @@ func TestUpdateRefusesALiveClaim(t *testing.T) {
 	g := graphOf(task("a", InProgress))
 	if _, err := g.UpdateTask("a", Edit{Title: strp("x")}, now.Add(2*time.Hour)); err != nil {
 		t.Fatalf("a lapsed claim should be editable: %v", err)
+	}
+}
+
+// Adding checks only adds proof. Removing or changing one, or changing the
+// result, weakens the definition of done: refused without a reason, and
+// recorded in the history with one, whatever the task's status.
+func TestUpdateWeakeningNeedsAReasonAndIsRecorded(t *testing.T) {
+	keep := "go test ./internal/a"
+	cases := []struct {
+		name string
+		e    Edit
+		want Weakening
+	}{
+		{"add a check", Edit{Checks: listp("go vet ./a", keep)}, Weakening{}},
+		{"same result", Edit{Result: strp("a works")}, Weakening{}},
+		{"replace the check", Edit{Checks: listp("true")}, Weakening{Removed: []string{keep}}},
+		{"reword the check", Edit{Checks: listp(keep + " -count=1")}, Weakening{Removed: []string{keep}}},
+		{"change the result", Edit{Result: strp("a compiles")}, Weakening{Result: true}},
+		{"both", Edit{Checks: listp("true"), Result: strp("x")}, Weakening{Removed: []string{keep}, Result: true}},
+	}
+	for _, c := range cases {
+		for _, status := range []string{Todo, Done} {
+			t.Run(c.name+"/"+status, func(t *testing.T) {
+				g := graphOf(task("a", status))
+				if got := WeakeningOf(g.Tasks[0], c.e); !reflect.DeepEqual(got, c.want) {
+					t.Fatalf("WeakeningOf = %+v, want %+v", got, c.want)
+				}
+				before := cloneTasks(g.Tasks)
+				_, err := g.UpdateTask("a", c.e, now)
+				if !c.want.Weakens() {
+					if err != nil || g.Tasks[0].History != nil {
+						t.Fatalf("a strengthening edit: err %v, history %+v", err, g.Tasks[0].History)
+					}
+					return
+				}
+				wantEditErr(t, err, "weakens its definition of done; say why with --reason")
+				unchanged(t, g, before)
+
+				e := c.e
+				e.By, e.Reason = "aid-mechanic", "  the old check tested the wrong package  "
+				got, err := g.UpdateTask("a", e, now)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := Change{At: now, By: "aid-mechanic", Reason: "the old check tested the wrong package"}
+				if c.want.Removed != nil {
+					want.ChecksFrom, want.ChecksTo = []string{keep}, *e.Checks
+				}
+				if c.want.Result {
+					want.ResultFrom, want.ResultTo = "a works", *e.Result
+				}
+				if len(got.History) != 1 || !reflect.DeepEqual(got.History[0], want) {
+					t.Fatalf("history %+v, want %+v", got.History, want)
+				}
+				mustValid(t, g)
+			})
+		}
+	}
+}
+
+func TestHistoryValidation(t *testing.T) {
+	good := Change{At: now, By: "main", Reason: "r", ChecksFrom: []string{"a"}, ChecksTo: []string{"b"}}
+	cases := []struct {
+		name string
+		edit func(*Change)
+		want string
+	}{
+		{"no time", func(c *Change) { c.At = time.Time{} }, "history[0] has no time"},
+		{"no author", func(c *Change) { c.By = " " }, "history[0] says nothing about who made it"},
+		{"no reason", func(c *Change) { c.Reason = "" }, "history[0] gives no reason"},
+		{"no change", func(c *Change) { c.ChecksFrom, c.ChecksTo = nil, nil }, "history[0] records no change"},
+		{"half the checks", func(c *Change) { c.ChecksTo = nil }, "history[0] needs both `checks_from` and `checks_to`"},
+		{"half the result", func(c *Change) { c.ChecksFrom, c.ChecksTo, c.ResultFrom = nil, nil, "x" }, "history[0] needs both `result_from` and `result_to`"},
+	}
+	g := graphOf(task("a", Todo))
+	g.Tasks[0].History = []Change{good}
+	mustValid(t, g)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ch := good
+			c.edit(&ch)
+			g := graphOf(task("a", Todo))
+			g.Tasks[0].History = []Change{ch}
+			if p := strings.Join(g.Validate(), "\n"); !strings.Contains(p, "task `a`: "+c.want) {
+				t.Fatalf("got %q, want %q", p, c.want)
+			}
+		})
 	}
 }
 

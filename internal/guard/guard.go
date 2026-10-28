@@ -16,11 +16,15 @@ import (
 	"strings"
 )
 
-// Decision is what a guard tells Claude Code.
+// Decision is what a guard tells Claude Code. Ask, when set, is the reason a
+// call is put to the user (Stdout then carries Claude Code's "ask"), and Task
+// the task it concerns, for OpenCode's permission request.
 type Decision struct {
 	Exit   int
 	Stdout string
 	Stderr string
+	Ask    string
+	Task   string
 }
 
 // Env is what a guard reads from its surroundings, injected so tests control it.
@@ -32,6 +36,9 @@ type Env struct {
 	// Harness picks the config file the guards read and the wording of their
 	// messages; empty is Claude Code.
 	Harness Harness
+	// DoneGate judges an aid update-task call for the definition-of-done
+	// gate; aid sets it. Nil asks about every such call that could weaken.
+	DoneGate DoneGate
 }
 
 // OSEnv is the real environment.
@@ -59,7 +66,7 @@ func spawnCall(env Env) string {
 var agentTools = []string{"Agent", "Task"}
 
 // Names lists the guards, in hooks.json order.
-var Names = []string{"session-start", "inline", "generic", "sensitive", "models"}
+var Names = []string{"session-start", "inline", "generic", "sensitive", "models", "definition-of-done"}
 
 // guards maps a name to its decision function. A nil payload means stdin
 // wasn't a JSON object.
@@ -68,6 +75,8 @@ var guards = map[string]func(p *Object, env Env) (Decision, error){
 	"generic":   generic,
 	"sensitive": sensitive,
 	"models":    modelOverride,
+	// definition-of-done reads no config, so a broken aid.json never stops it.
+	"definition-of-done": definitionOfDone,
 }
 
 // Run runs the named guard on the raw hook payload.

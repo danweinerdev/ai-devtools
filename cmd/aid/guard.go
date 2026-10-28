@@ -33,6 +33,18 @@ var guardHelp = map[string]string{
 		"the rule's allow_agents.",
 	"models": "PreToolUse (Agent|Task): apply .claude/aid.json model overrides by rewriting the spawn's model " +
 		"through updatedInput, with permissionDecision allow.",
+	"definition-of-done": "PreToolUse (Bash|Write|Edit|MultiEdit|NotebookEdit): an `aid update-task` call that " +
+		"would weaken a task's definition of done (remove or change a check, or change the result) is answered " +
+		"\"ask\", so the user approves it; one the guard can't parse that passes --check or --result is asked too. " +
+		"File-tool edits of .aid/<work>/tasks.json or state.json are denied: they change only through aid.",
+}
+
+// guardEnv is the real environment, with aid's own judge for the
+// definition-of-done gate.
+func guardEnv() guard.Env {
+	env := guard.OSEnv()
+	env.DoneGate = doneGate
+	return env
 }
 
 func guardCmd(a *app) *cobra.Command {
@@ -43,7 +55,7 @@ func guardCmd(a *app) *cobra.Command {
 		Long: "The guardrail hooks. Claude Code's read the hook payload on stdin and exit 0 to allow or 2 " +
 			"(reason on stderr) to deny; OpenCode's plugin calls opencode-tool and policy. An invalid aid.json " +
 			"makes every guard that reads it deny with what to fix; a bug in a guard fails open; AID_GUARDS=off " +
-			"disables them for the session. They never touch .aid/.",
+			"disables them for the session. They never write .aid/; the definition-of-done gate reads the graph.",
 	}
 	parent.AddCommand(openCodeToolCmd(a), policyCmd(a))
 	for _, name := range guard.Names {
@@ -54,7 +66,7 @@ func guardCmd(a *app) *cobra.Command {
 			Args:  cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				stdin, _ := io.ReadAll(cmd.InOrStdin())
-				d := guard.Run(name, stdin, guard.OSEnv())
+				d := guard.Run(name, stdin, guardEnv())
 				_, _ = io.WriteString(a.out, d.Stdout)
 				_, _ = io.WriteString(a.err, d.Stderr)
 				if d.Exit != 0 {
@@ -75,13 +87,15 @@ func openCodeToolCmd(a *app) *cobra.Command {
 		Short: "OpenCode tool guard: decide one tool call for the plugin",
 		Long: "Reads {\"tool\", \"args\", \"sessionID\", \"agent\", \"cwd\"} (an OpenCode 2 tool call; an optional " +
 			"\"agent_mode\": \"primary\"|\"subagent\" says whether the caller is a subagent) and prints " +
-			"{\"decision\": \"allow\"|\"deny\", \"reason\": \"...\"}, exit 0 either way. It runs the generic, " +
-			"sensitivity and inline-budget guards against .opencode/aid.json (else ~/.config/opencode/aid.json); " +
-			"an invalid config denies with what to fix. Exits non-zero only when aid itself fails.",
+			"{\"decision\": \"allow\"|\"ask\"|\"deny\", \"reason\": \"...\", \"task\": \"...\"}, exit 0 either way. " +
+			"It runs the generic, sensitivity and inline-budget guards against .opencode/aid.json (else " +
+			"~/.config/opencode/aid.json), then the definition-of-done gate, whose \"ask\" the plugin turns into an " +
+			"OpenCode permission request; an invalid config denies with what to fix. Exits non-zero only when aid " +
+			"itself fails.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			stdin, _ := io.ReadAll(cmd.InOrStdin())
-			v, err := guard.OpenCodeTool(stdin, guard.OSEnv())
+			v, err := guard.OpenCodeTool(stdin, guardEnv())
 			if err != nil {
 				_, _ = fmt.Fprintf(a.err, "aid-guards: opencode-tool: %v\n", err)
 				return exitCode(1)

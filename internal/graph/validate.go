@@ -59,6 +59,9 @@ func (g *Graph) Validate() []string {
 			}
 		}
 		validateState(t, func(format string, args ...any) { add(at, format, args...) })
+		for j, c := range t.History {
+			validateChange(c, func(format string, args ...any) { add(at, "history[%d] %s", j, fmt.Sprintf(format, args...)) })
+		}
 	}
 
 	for _, t := range g.Tasks {
@@ -293,4 +296,28 @@ func shortestLoop(comp []int, edges [][]int) []int {
 		}
 	}
 	return []int{start, start} // unreachable: a component of two or more has a loop
+}
+
+// validateChange checks one history entry: who, when and why, and at least
+// one change with both its old and new value.
+func validateChange(c Change, add func(format string, args ...any)) {
+	if c.At.IsZero() {
+		add("has no time (`at`)")
+	}
+	if strings.TrimSpace(c.By) == "" {
+		add("says nothing about who made it (`by`)")
+	}
+	if strings.TrimSpace(c.Reason) == "" {
+		add("gives no reason")
+	}
+	checks := len(c.ChecksFrom) > 0 || len(c.ChecksTo) > 0
+	result := c.ResultFrom != "" || c.ResultTo != ""
+	switch {
+	case !checks && !result:
+		add("records no change to the checks or the result")
+	case checks && (len(c.ChecksFrom) == 0 || len(c.ChecksTo) == 0):
+		add("needs both `checks_from` and `checks_to`")
+	case result && (c.ResultFrom == "" || c.ResultTo == ""):
+		add("needs both `result_from` and `result_to`")
+	}
 }

@@ -165,4 +165,21 @@ func writeDetail(b *strings.Builder, d taskDetail) {
 	for _, c := range d.Done.Checks {
 		fmt.Fprintf(b, "    %s\n", c)
 	}
+	if len(d.History) > 0 {
+		b.WriteString("  history:\n")
+		writeHistory(b, d.History, "    ")
+	}
+}
+
+// writeHistory prints each weakening of a definition of done, indented.
+func writeHistory(b *strings.Builder, history []graph.Change, indent string) {
+	for _, c := range history {
+		fmt.Fprintf(b, "%s%s weakened by %s: %s\n", indent, c.At.Format(time.RFC3339), c.By, c.Reason)
+		if len(c.ChecksFrom) > 0 {
+			fmt.Fprintf(b, "%s  checks: %s → %s\n", indent, strings.Join(c.ChecksFrom, "; "), strings.Join(c.ChecksTo, "; "))
+		}
+		if c.ResultFrom != "" {
+			fmt.Fprintf(b, "%s  result: %q → %q\n", indent, c.ResultFrom, c.ResultTo)
+		}
+	}
 }

@@ -305,6 +305,7 @@ func cloneTasks(tasks []Task) []Task {
 		t.Needs = slices.Clone(t.Needs)
 		t.Footprint = slices.Clone(t.Footprint)
 		t.Done.Checks = slices.Clone(t.Done.Checks)
+		t.History = slices.Clone(t.History)
 		out[i] = t
 	}
 	return out

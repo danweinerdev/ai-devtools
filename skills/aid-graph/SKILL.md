@@ -54,7 +54,7 @@ A task's **effective** status is its status, except that an `in-progress` task w
 |---|---|
 | `init <name>` | creates `.aid/<name>/` with an empty graph and state record, atomically; refused if it exists |
 | `add-task --title --footprint --result --check [--id] [--needs]` | adds a `todo` task. Its needs must already exist, so add in dependency order. Without `--id` a UUIDv7 is generated; a duplicate ID is refused |
-| `update-task <id> [--title] [--needs] [--footprint] [--result] [--check]` | changes only the flags given; a list flag replaces the whole list (`--needs=` clears it). Never changes status; a dropped task can't be edited, and neither can a task under a live claim, its holder included |
+| `update-task <id> [--title] [--needs] [--footprint] [--result] [--check] [--reason] [--holder]` | changes only the flags given; a list flag replaces the whole list (`--needs=` clears it). Never changes status; a dropped task can't be edited, and neither can a task under a live claim, its holder included. Removing or changing a check, or changing the result, **weakens** the definition of done: refused without `--reason`, and recorded in the task's `history` (when, `--holder`, old and new values, reason), in any status |
 | `split-task <id> --into <ids>` | the parts are added first with `add-task`. They inherit the task's needs, every task that needed it now needs all the parts, and it becomes `dropped` with the reason `split into …`, in one write. Refused on a `done` or `dropped` task, a live claim, or a part the task itself needs (directly or through a chain) |
 | `claim-task <id> [--holder <who>] [--lease 2h]` | marks a ready task `in-progress` for the holder until the lease lapses. One holder at a time; the same holder claiming again renews the lease |
 | `release-task <id> [--holder <who>]` | an `in-progress` task back to `todo`, claim cleared; only its holder may release a live claim. On a `blocked` task it unblocks it back to `todo` |
@@ -65,7 +65,7 @@ A task's **effective** status is its status, except that an `in-progress` task w
 | `ready` | lists the frontier |
 | `show [ids…]` | no IDs: every task in file order with its effective status and needs, then a summary. With IDs: those tasks in full, including the tasks that need them |
 | `validate` | checks both files and the links between them, reporting every problem; writes nothing |
-| `finish` | succeeds only when the graph is non-empty, every task is `done` or `dropped`, no claim is live, and no state item is open (aid-state); checked inside the locked write |
+| `finish` | succeeds only when the graph is non-empty, every task is `done` or `dropped`, no claim is live, and no state item is open (aid-state); checked inside the locked write. On success it lists every task whose definition of done was weakened, with its history |
 
 List flags (`--needs`, `--footprint`, `--into`, `--replaced-by`, `--paths`) take comma-separated values or repeat. `--check` repeats, one command per flag, because commands contain commas.
 
@@ -77,7 +77,7 @@ Text output is for people. With `--json`:
 
 - task commands print the task with its `effective` status (`show <ids>` adds `dependents`); `ready` and `split-task` print lists of tasks; `show` prints `{"tasks", "items": {"open", "resolved"}}`;
 - `complete-task` prints `{"id", "done", "checks"}` and `check` prints `{"tasks": [{"id", "status", "passed", "checks"}], "passed", "failed"}`, each check being `{"command", "passed", "exitCode", "seconds"}` plus `timedOut`, `error` and `output` when relevant;
-- `drop-task` prints `{"task", "dropped", "rewired", "keptAsHistory", "dependents"}`, and its refusal's `detail` is `{"id", "dependents": [{"id", "status", "blocks"}], "transitive"}`; `finish` prints `{"done", "dropped"}`.
+- `drop-task` prints `{"task", "dropped", "rewired", "keptAsHistory", "dependents"}`, and its refusal's `detail` is `{"id", "dependents": [{"id", "status", "blocks"}], "transitive"}`; `finish` prints `{"done", "dropped", "weakened": [{"id", "history"}]}`.
 
 Every refusal exits 1, writes the message to stderr, and with `--json` also prints `{"error", "detail"}` to stdout. `detail` carries what an agent needs to act on it: the failing checks, the dependents blocking a drop, the tasks and items keeping `finish` from succeeding, or the problems `validate` found.
 
@@ -93,7 +93,7 @@ Every refusal exits 1, writes the message to stderr, and with `--json` also prin
 
 **When the plan changes.** No plan survives implementation. Change the graph, not the breakdown:
 - a task turns out bigger than planned: add the parts, then `split-task`;
-- its scope, needs, or checks were wrong: `update-task` (a held task is released first, so its definition of done never changes under its holder);
+- its scope, needs, or checks were wrong: `update-task` (a held task is released first, so its definition of done never changes under its holder). Adding checks is free. Removing or changing one, or changing the result, needs `--reason`, is recorded, and is put to the user for approval where the harness can ask: a check that no longer proves what it did is the one change review can't see from the code alone;
 - it no longer applies: `drop-task`.
 
 **Dropping a task.** `drop-task` is refused while a claim is live, and while any `todo`, `in-progress` or `blocked` task still needs it. The refusal lists only the direct dependents, the ones whose needs must move, each with its status and whether it blocks, plus a count of the tasks with work ahead that need them in turn.
