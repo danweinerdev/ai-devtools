@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/session_start.py\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/py\" \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/session_start.py\"",
             "timeout": 15
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_inline.py\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/py\" \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_inline.py\"",
             "timeout": 10
           }
         ]
@@ -28,17 +28,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_generic.py\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/py\" \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_generic.py\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_sensitive.py\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/py\" \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_sensitive.py\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_models.py\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/py\" \"${CLAUDE_PLUGIN_ROOT}/harness/claude/hooks/guard_models.py\"",
             "timeout": 10
           }
         ]
