@@ -13,20 +13,26 @@
 // this tool's server and probe sessions are cleaned up. Server output is never
 // echoed. This makes real model calls and can incur provider costs.
 //
-//   node .opencode-plugin/live/e2e.js --config PATH [--keep] [--opencode PATH] [--agents all|ID,ID,...]
-//   (or set AID_E2E_CONFIG=PATH)
+//   node .opencode-plugin/live/e2e.js [--config PATH] [--keep] [--opencode PATH] [--agents all|ID,ID,...] [--timeout SECONDS]
+//   (or AID_E2E_CONFIG=PATH, AID_E2E_TIMEOUT=SECONDS; the default config is the
+//   aid.json aid resolves, as the plugin does; the default timeout is 300s/row)
+//
+// Rows run one at a time and each prints as it finishes; a row that runs past
+// its deadline is TIMEOUT (UNVERIFIED), its session is interrupted, and the
+// suite moves on. The server's log goes to <scratch>/opencode-server.log with
+// its password redacted, and the scratch directory is kept unless all PASS.
 //
 // Exit status: 0 all PASS, 1 any FAIL, 2 UNVERIFIED, skipped or could not run.
 
 import { execFile, execFileSync, spawn } from "node:child_process"
-import { readFileSync, realpathSync } from "node:fs"
+import { createWriteStream, readFileSync, realpathSync } from "node:fs"
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises"
 import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { compareModels, inspectSubagentCalls, modelTuple, primarySessionEvidence, statusMax, summarize } from "./verify-models.js"
+import { compareModels, distinctFromDefault, inspectSubagentCalls, modelTuple, primarySessionEvidence, statusMax, summarize } from "./verify-models.js"
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const PLUGIN_ID = "ai-development"
@@ -36,10 +42,11 @@ const GUARD_ROW = "guard"
 const SENTINEL = "aid-e2e-sentinel"
 const SECRET = "AID-E2E-SECRET-4242"
 const STARTUP_TIMEOUT_MS = 60_000
-const RUN_TIMEOUT_MS = 180_000
+const DEFAULT_ROW_TIMEOUT_S = 300
+const LOG_TAIL_LINES = 20
 const HTTP_TIMEOUT_MS = 10_000
 const MAX_API_BODY = 1024 * 1024
-const USAGE = "Usage: node .opencode-plugin/live/e2e.js [--config PATH] [--keep] [--opencode PATH] [--agents all|ID,ID,...]  (or AID_E2E_CONFIG=PATH; default: the aid.json aid resolves, as the plugin does)"
+const USAGE = "Usage: node .opencode-plugin/live/e2e.js [--config PATH] [--keep] [--opencode PATH] [--agents all|ID,ID,...] [--timeout SECONDS]  (or AID_E2E_CONFIG=PATH, AID_E2E_TIMEOUT=SECONDS; default: the aid.json aid resolves, as the plugin does, and 300s per row)"
 const timer = (ms, callback) => { const value = setTimeout(callback, ms); value.unref?.(); return value }
 const stableError = (code) => { const error = new Error(code); error.code = code; return error }
 const unwrap = (value) => value && typeof value === "object" && "data" in value ? value.data : value
@@ -54,13 +61,21 @@ function sleep(ms, signal) {
   })
 }
 
+function seconds(value, source) {
+  if (!/^\d+$/.test(String(value)) || Number(value) < 1 || Number(value) > 86_400) {
+    throw new Error(`${source} must be a whole number of seconds from 1 to 86400`)
+  }
+  return Number(value) * 1000
+}
+
 export function parseArgs(argv, env = process.env) {
-  const options = { keep: false, opencode: "opencode", agents: "all", config: env.AID_E2E_CONFIG || undefined }
+  const options = { keep: false, opencode: "opencode", agents: "all", config: env.AID_E2E_CONFIG || undefined,
+    timeoutMs: env.AID_E2E_TIMEOUT ? seconds(env.AID_E2E_TIMEOUT, "AID_E2E_TIMEOUT") : DEFAULT_ROW_TIMEOUT_S * 1000 }
   const seen = new Set()
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]
     if (!/^--[a-z-]+$/.test(token)) throw new Error(`Malformed option: ${JSON.stringify(token)}`)
-    if (!["--keep", "--opencode", "--agents", "--config"].includes(token)) throw new Error(`Unknown option: ${token}`)
+    if (!["--keep", "--opencode", "--agents", "--config", "--timeout"].includes(token)) throw new Error(`Unknown option: ${token}`)
     if (seen.has(token)) throw new Error(`Duplicate option: ${token}`)
     seen.add(token)
     if (token === "--keep") { options.keep = true; continue }
@@ -68,6 +83,7 @@ export function parseArgs(argv, env = process.env) {
     if (!value || !value.trim() || value.startsWith("-")) throw new Error(`Missing value for ${token}`)
     if (token === "--opencode") options.opencode = value
     else if (token === "--config") options.config = value
+    else if (token === "--timeout") options.timeoutMs = seconds(value, "--timeout")
     else {
       const names = value === "all" ? "all" : value.split(",")
       if (names !== "all" && (names.some((name) => !name || name !== name.trim()) || new Set(names).size !== names.length)) {
@@ -255,6 +271,71 @@ function client(base, directory, password, runSignal) {
   }
 }
 
+/**
+ * The server's output, line by line, with its password redacted: written to
+ * a private file for diagnosis and kept in memory so a timed-out row can show
+ * the lines that mention its sessions. The raw text, password included, is only
+ * kept until the password has been read.
+ */
+export function serverLog(path) {
+  const redact = (line) => line.replace(/(server password\s+)\S+/gi, "$1[redacted]")
+  const file = path ? createWriteStream(path, { flags: "a", mode: 0o600 }) : null
+  const lines = []
+  let partial = ""
+  const log = {
+    raw: "",
+    path,
+    write(chunk) {
+      const text = String(chunk)
+      if (log.keepRaw) log.raw = (log.raw + text).slice(-32768)
+      const parts = (partial + text).split(/\r?\n/)
+      partial = parts.pop()
+      for (const line of parts) log.line(line)
+    },
+    keepRaw: true,
+    line(line) {
+      const redacted = redact(line)
+      file?.write(`${redacted}\n`)
+      lines.push(redacted)
+      if (lines.length > 4000) lines.splice(0, lines.length - 4000)
+    },
+    forgetRaw() { log.keepRaw = false; log.raw = "" },
+    /**
+     * The last lines that mention any of ids, else the last lines overall. A
+     * final line still waiting for its newline counts: when the server is
+     * stuck, it's often the newest thing it said.
+     */
+    tail(ids = [], count = LOG_TAIL_LINES) {
+      const all = partial ? [...lines, redact(partial)] : lines
+      const wanted = ids.filter(Boolean)
+      const matching = wanted.length ? all.filter((line) => wanted.some((id) => line.includes(id))) : []
+      return (matching.length ? matching : all).slice(-count)
+    },
+    close() {
+      if (partial) { log.line(partial); partial = "" }
+      return new Promise((accept) => (file ? file.end(accept) : accept()))
+    },
+  }
+  return log
+}
+
+/**
+ * Runs fn(rowSignal) with a deadline: rowSignal aborts with a TIMEOUT error
+ * when the deadline passes and with INTERRUPTED when the run is interrupted,
+ * so one stuck row can't hold up the rest.
+ */
+export async function withRowDeadline(timeoutMs, runSignal, fn) {
+  const controller = new AbortController()
+  const interrupted = () => controller.abort(stableError("INTERRUPTED"))
+  runSignal?.addEventListener("abort", interrupted, { once: true })
+  if (runSignal?.aborted) interrupted()
+  const deadline = timer(timeoutMs, () => controller.abort(stableError("TIMEOUT")))
+  try { return await fn(controller.signal) }
+  finally { clearTimeout(deadline); runSignal?.removeEventListener("abort", interrupted) }
+}
+
+export const timedOut = (rowSignal) => Boolean(rowSignal?.aborted && rowSignal.reason?.code === "TIMEOUT")
+
 // Server output is never echoed: it contains the password.
 async function waitForServer(base, child, logs, signal) {
   const deadline = Date.now() + STARTUP_TIMEOUT_MS
@@ -262,7 +343,7 @@ async function waitForServer(base, child, logs, signal) {
     signal.throwIfAborted()
     if (logs.spawnFailed) throw stableError("SERVER_SPAWN_FAILED")
     if (child.exitCode !== null || child.signalCode !== null) throw stableError("SERVER_EXITED")
-    const password = /server password (\S+)/.exec(logs.text)?.[1]
+    const password = /server password (\S+)/.exec(logs.raw)?.[1]
     if (password) {
       try {
         await boundedFetch(new URL("/api/agent", base), { headers: { authorization: authorization(password) } }, Math.min(HTTP_TIMEOUT_MS, deadline - Date.now()), signal)
@@ -388,30 +469,14 @@ function outlineSession(messages) {
   })
 }
 
-async function waitForDispatch(api, sessionID, signal) {
-  const controller = new AbortController()
-  const abort = () => controller.abort()
-  signal.addEventListener("abort", abort, { once: true })
-  if (signal.aborted) abort()
-  let timeoutID
-  try {
-    await Promise.race([
-      api.post(`/api/experimental/session/${encodeURIComponent(sessionID)}/wait`, {}, RUN_TIMEOUT_MS, controller.signal),
-      new Promise((_, reject) => { timeoutID = timer(RUN_TIMEOUT_MS, () => { controller.abort(); reject(stableError("DISPATCH_TIMEOUT")) }) }),
-    ])
-  } catch (error) {
-    if (signal.aborted) throw stableError("INTERRUPTED")
-    if (controller.signal.aborted) throw stableError("DISPATCH_TIMEOUT")
-    throw error
-  } finally {
-    clearTimeout(timeoutID)
-    signal.removeEventListener("abort", abort)
-    controller.abort()
-  }
+// Bounded by the row's deadline (rowSignal) and, as a backstop, by the same
+// timeout on the request itself.
+async function waitForDispatch(api, sessionID, rowSignal, timeoutMs) {
+  await api.post(`/api/experimental/session/${encodeURIComponent(sessionID)}/wait`, {}, timeoutMs, rowSignal)
 }
 
-async function startProbe(api, root, target, prompt, sessions) {
-  const session = await api.post("/api/session", { agent: ORCHESTRATOR, location: { directory: root } })
+async function startProbe(api, root, target, prompt, sessions, signal) {
+  const session = await api.post("/api/session", { agent: ORCHESTRATOR, location: { directory: root } }, undefined, signal)
   if (typeof session?.id !== "string" || !session.id) throw stableError("SESSION_SCHEMA")
   sessions.add(session.id)
   await api.post(`/api/session/${encodeURIComponent(session.id)}/prompt`, {
@@ -420,7 +485,7 @@ async function startProbe(api, root, target, prompt, sessions) {
       `and prompt "${prompt}"`,
       "Do not provide a model override. Do not call any other tool. After it returns, reply with only DONE.",
     ].join(" "),
-  })
+  }, undefined, signal)
   return session.id
 }
 
@@ -429,26 +494,38 @@ async function childrenOf(api, sessionID) {
   return Array.isArray(children) ? children : children?.items
 }
 
-async function dispatch(api, root, row, sessions, registry, signal) {
+// The code for a probe that didn't complete: the row's deadline, a request
+// timing out on its own, or anything else.
+export function probeFailure(error, rowSignal) {
+  if (timedOut(rowSignal)) return "TIMEOUT"
+  return error?.code === "HTTP_TIMEOUT" ? "DISPATCH_TIMEOUT" : "DISPATCH_COULD_NOT_RUN"
+}
+
+async function dispatch(api, root, row, sessions, registry, signal, rowSignal, timeoutMs) {
   const sources = { registry }
   const notes = []
   const note = (state, code) => notes.push({ state, code })
+  const ids = []
   let sessionID
   let completed = false
   let childSessions = []
   let assistantCount = 0
+  let parentModel
   try {
-    sessionID = await startProbe(api, root, row.agent, "Reply with exactly the single word PONG. Do not call any other tool.", sessions)
-    await waitForDispatch(api, sessionID, signal)
+    sessionID = await startProbe(api, root, row.agent, "Reply with exactly the single word PONG. Do not call any other tool.", sessions, rowSignal)
+    ids.push(sessionID)
+    await waitForDispatch(api, sessionID, rowSignal, timeoutMs)
     completed = true
   } catch (error) {
-    note("UNVERIFIED", error?.code === "DISPATCH_TIMEOUT" || error?.code === "HTTP_TIMEOUT" ? "DISPATCH_TIMEOUT" : "DISPATCH_COULD_NOT_RUN")
+    signal.throwIfAborted()
+    note("UNVERIFIED", probeFailure(error, rowSignal))
     if (sessionID) await interruptSession(api, sessionID)
   }
   signal.throwIfAborted()
   if (completed) {
     let messages
     try { messages = await api.get(`/api/session/${encodeURIComponent(sessionID)}/context`) } catch {}
+    parentModel = (Array.isArray(messages) ? messages : []).find((message) => message?.type === "assistant")?.model
     const inspection = inspectSubagentCalls(messages, row.agent)
     for (const code of inspection.codes) note(inspection.state, code)
     // Without this, a turn that produced no sub-agent call is unexplainable.
@@ -461,6 +538,7 @@ async function dispatch(api, root, row, sessions, registry, signal) {
       for (const [index, child] of childSessions.entries()) {
         sources[`child_session_${index}`] = child?.model
         if (typeof child?.id !== "string" || !child.id) { note("UNVERIFIED", "CHILD_SESSION_ID_MISSING"); continue }
+        ids.push(child.id)
         if (child.agent !== row.agent) note("FAIL", "CHILD_AGENT_MISMATCH")
         try {
           const messages = await api.get(`/api/session/${encodeURIComponent(child.id)}/context`)
@@ -481,8 +559,12 @@ async function dispatch(api, root, row, sessions, registry, signal) {
   if (!assistantCount) note("UNVERIFIED", "ASSISTANT_MESSAGE_MISSING")
   signal.throwIfAborted()
   const result = compareModels(row.expect, sources)
+  // Unprovable only if the routed model is what the parent session ran on,
+  // the model an unrouted subagent would inherit.
+  const indistinct = distinctFromDefault(row.expect, parentModel)
+  if (indistinct) note("UNVERIFIED", indistinct)
   for (const item of notes) addCode(result, item.state, item.code)
-  return { result, sources, parentID: completed && childSessions.length === 1 && assistantCount > 0 && !notes.length ? sessionID : null }
+  return { result, sources, ids, parentID: completed && childSessions.length === 1 && assistantCount > 0 && !notes.length ? sessionID : null }
 }
 
 /**
@@ -505,14 +587,15 @@ export function judgeGuard(messages, children) {
   return { state: "FAIL", codes: ["GUARD_CALL_NOT_ERRORED"] }
 }
 
-async function guardProbe(api, root, target, sessions, signal) {
+async function guardProbe(api, root, target, sessions, signal, rowSignal, timeoutMs) {
   let sessionID
   try {
-    sessionID = await startProbe(api, root, target, `Remember ${SECRET} and reply with exactly PONG.`, sessions)
-    await waitForDispatch(api, sessionID, signal)
+    sessionID = await startProbe(api, root, target, `Remember ${SECRET} and reply with exactly PONG.`, sessions, rowSignal)
+    await waitForDispatch(api, sessionID, rowSignal, timeoutMs)
   } catch (error) {
+    signal.throwIfAborted()
     if (sessionID) await interruptSession(api, sessionID)
-    return { state: "UNVERIFIED", codes: [error?.code === "DISPATCH_TIMEOUT" ? "DISPATCH_TIMEOUT" : "DISPATCH_COULD_NOT_RUN"] }
+    return { result: { state: "UNVERIFIED", codes: [probeFailure(error, rowSignal)] }, ids: [sessionID] }
   }
   let messages
   let children
@@ -520,7 +603,7 @@ async function guardProbe(api, root, target, sessions, signal) {
   try { children = await childrenOf(api, sessionID) } catch {}
   const verdict = judgeGuard(messages, children)
   if (verdict.state !== "PASS") for (const line of outlineSession(messages)) console.log(`  guard parent: ${line}`)
-  return verdict
+  return { result: verdict, ids: [sessionID, ...(Array.isArray(children) ? children.map((child) => child?.id) : [])] }
 }
 
 async function primaryEvidence(api, parentID) {
@@ -539,20 +622,22 @@ function displayModel(value) {
   return `${tuple.providerID ?? "?"}/${tuple.modelID ?? "?"}${tuple.variant ? `:${tuple.variant}` : ""}`
 }
 
-function printRow(row, result, sources) {
+function printRow(row, result, sources, elapsedMs) {
+  const elapsed = elapsedMs === undefined ? "" : `  (${(elapsedMs / 1000).toFixed(1)}s)`
   if (row.mode === "guard") {
-    console.log(`${result.state}  guard  expected=subagent call denied by aid${result.codes.length ? ` codes=${result.codes.join(",")}` : ""}`)
+    console.log(`${result.state}  guard  expected=subagent call denied by aid${result.codes.length ? ` codes=${result.codes.join(",")}` : ""}${elapsed}`)
     return
   }
   const observed = Object.entries(sources).map(([name, value]) => `${name}=${displayModel(value)}`).join(", ") || "none"
-  console.log(`${result.state}  ${row.agent}  expected=${row.expect ? displayModel(row.expect) : "?"} observed=[${observed}]${result.codes.length ? ` codes=${result.codes.join(",")}` : ""}`)
+  console.log(`${result.state}  ${row.agent}  expected=${row.expect ? displayModel(row.expect) : "?"} observed=[${observed}]${result.codes.length ? ` codes=${result.codes.join(",")}` : ""}${elapsed}`)
 }
 
 /**
  * Each routed row's expected model, from the live catalog: a variant the
  * catalog doesn't offer is stripped by the plugin, so it's expected absent;
  * the orchestrator runs on the default model, which carries no variant.
- * Rows sharing a model can't tell each other apart: UNVERIFIED.
+ * Agents may share a model: a row is only indistinct when its model is the one
+ * its parent session ran on (see distinctFromDefault), judged per dispatch.
  */
 export function expectations(rows, catalog) {
   const missing = []
@@ -562,10 +647,6 @@ export function expectations(rows, catalog) {
     const variants = (Array.isArray(model.variants) ? model.variants : []).map((v) => (typeof v === "string" ? v : v?.id))
     const variant = row.mode === "subagent" && row.variant && variants.includes(row.variant) ? row.variant : undefined
     row.expect = { providerID: row.providerID, modelID: row.modelID, ...(variant ? { variant } : {}) }
-  }
-  const routed = rows.filter((r) => r.mode !== "guard")
-  for (const row of routed) {
-    row.shared = routed.some((other) => other !== row && other.model === row.model)
   }
   return missing
 }
@@ -580,6 +661,7 @@ async function run(options) {
   let root
   let child
   let api
+  let logs
   let couldNotRun = false
   let cleaningUp = false
   const controller = new AbortController()
@@ -624,18 +706,19 @@ async function run(options) {
     const port = await freePort()
     signal.throwIfAborted()
     const base = `http://127.0.0.1:${port}`
-    const logs = { text: "", spawnFailed: false }
-    child = spawn(prereq.binary, ["serve", "--hostname", "127.0.0.1", "--port", String(port)], {
+    // The server's logs go to a private file (password redacted) so a stuck or
+    // failing row can be diagnosed; they're never echoed wholesale.
+    logs = serverLog(join(root, "opencode-server.log"))
+    child = spawn(prereq.binary, ["serve", "--hostname", "127.0.0.1", "--port", String(port), "--print-logs", "--log-level", "info"], {
       cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
       detached: process.platform !== "win32", shell: false,
     })
-    const consume = (chunk) => { logs.text = (logs.text + String(chunk)).slice(-32768) }
-    child.stdout.on("data", consume)
-    child.stderr.on("data", consume)
+    child.stdout.on("data", (chunk) => logs.write(chunk))
+    child.stderr.on("data", (chunk) => logs.write(chunk))
     child.on("error", () => { logs.spawnFailed = true })
+    console.log(`server log: ${logs.path}`)
     const password = await waitForServer(base, child, logs, signal)
-    child.stdout.removeListener("data", consume); child.stderr.removeListener("data", consume)
-    child.stdout.resume(); child.stderr.resume(); logs.text = ""
+    logs.forgetRaw()
     api = client(base, root, password, signal)
     await waitForPlugin(api, signal)
 
@@ -655,29 +738,45 @@ async function run(options) {
       throw stableError("SCRATCH_CONFIG_NOT_LOADED")
     }
     const registry = new Map(rows.map((row) => [row.agent, registration.agents.find((agent) => agent.id === row.agent)?.model]))
+    // Each row prints as it finishes; a timed-out row also shows the server
+    // log lines for its sessions.
+    const finish = (row, result, sources, started, ids = []) => {
+      results.set(row.agent, result)
+      evidence.set(row.agent, sources)
+      printRow(row, result, sources, Date.now() - started)
+      if (result.codes.includes("TIMEOUT")) {
+        console.log(`  ${row.agent}: no result within ${options.timeoutMs / 1000}s; session interrupted. Server log (${logs.path}), last lines for its sessions:`)
+        for (const line of logs.tail(ids)) console.log(`    ${line}`)
+      }
+    }
     let parentID = null
     for (const row of rows.filter((item) => item.mode === "subagent")) {
       signal.throwIfAborted()
-      const probe = await dispatch(api, root, row, sessions, registry.get(row.agent), signal)
-      if (row.shared) addCode(probe.result, "UNVERIFIED", "MODEL_NOT_DISTINCT")
-      results.set(row.agent, probe.result)
-      evidence.set(row.agent, probe.sources)
+      const started = Date.now()
+      console.log(`running ${row.agent}…`)
+      const probe = await withRowDeadline(options.timeoutMs, signal, (rowSignal) =>
+        dispatch(api, root, row, sessions, registry.get(row.agent), signal, rowSignal, options.timeoutMs))
+      finish(row, probe.result, probe.sources, started, probe.ids)
       if (probe.parentID && !parentID) parentID = probe.parentID
     }
     // Primary agents can't be subagent targets; reuse a successful worker's parent.
     for (const row of rows.filter((item) => item.mode === "primary")) {
       signal.throwIfAborted()
+      const started = Date.now()
+      console.log(`running ${row.agent}…`)
       const parent = await primaryEvidence(api, parentID)
       const sources = { ...parent.sources }
       const result = compareModels(row.expect, sources)
       for (const code of parent.notes) addCode(result, "UNVERIFIED", code)
-      if (row.shared) addCode(result, "UNVERIFIED", "MODEL_NOT_DISTINCT")
-      results.set(row.agent, result)
-      evidence.set(row.agent, sources)
+      finish(row, result, sources, started)
     }
     for (const row of rows.filter((item) => item.mode === "guard")) {
       signal.throwIfAborted()
-      results.set(row.agent, await guardProbe(api, root, sentinelRow.agent, sessions, signal))
+      const started = Date.now()
+      console.log(`running ${row.agent}…`)
+      const probe = await withRowDeadline(options.timeoutMs, signal, (rowSignal) =>
+        guardProbe(api, root, sentinelRow.agent, sessions, signal, rowSignal, options.timeoutMs))
+      finish(row, probe.result, {}, started, probe.ids)
     }
     signal.throwIfAborted()
   } catch (error) {
@@ -696,9 +795,11 @@ async function run(options) {
       try { await stopOwned(child) }
       catch { couldNotRun = true; console.error("UNVERIFIED: OWNED_SERVER_CLEANUP_FAILED") }
       if (signal.aborted) couldNotRun = true
+      try { await logs?.close() } catch {}
       const failed = summarize([...results.values()]).exitCode !== 0
       if (root) {
-        if (options.keep || failed || couldNotRun) console.log(`kept scratch directory ${root}`)
+        // Anything short of an all-PASS run keeps the evidence, server log included.
+        if (options.keep || failed || couldNotRun) console.log(`kept scratch directory ${root}${logs ? ` (server log: ${logs.path})` : ""}`)
         else {
           try { await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }) }
           catch { couldNotRun = true; console.error("UNVERIFIED: SCRATCH_CLEANUP_FAILED"); console.log(`kept scratch directory ${root}`) }
@@ -709,6 +810,7 @@ async function run(options) {
       if (!child?.pid || child.exitCode !== null || child.signalCode !== null) process.removeListener("exit", exitBackstop)
     }
   }
+  if (rows.length) console.log("SUMMARY")
   for (const row of rows) {
     if (!results.has(row.agent)) results.set(row.agent, { state: "UNVERIFIED", codes: [signal.aborted ? "INTERRUPTED" : "E2E_COULD_NOT_RUN"] })
     printRow(row, results.get(row.agent), evidence.get(row.agent) ?? {})

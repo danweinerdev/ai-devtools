@@ -11,7 +11,7 @@
 | `aid-orchestrator` (if mapped) | a worker's parent session ran on the orchestrator's profile model (the default model) |
 | `guard` | a dispatch carrying a planted secret is denied by `aid guard`: the subagent call errors and no child session exists |
 
-Evidence must agree across every source; missing evidence is **UNVERIFIED**, never a pass. A variant the catalog doesn't offer is expected to be stripped. Rows whose agents share one model can't be told apart and are UNVERIFIED (`MODEL_NOT_DISTINCT`): give each mapped agent its own model for a full pass. Unmapped agents run on the session's model and are listed as skipped.
+Evidence must agree across every source; missing evidence is **UNVERIFIED**, never a pass. A variant the catalog doesn't offer is expected to be stripped. Agents may share a model. A row is UNVERIFIED (`MODEL_NOT_DISTINCT`) only when its model, variant included, is the one its parent session ran on: an unrouted subagent would inherit that model, so routing can't be told apart from inheriting. Unmapped agents run on the session's model and are listed as skipped.
 
 ## Running it
 
@@ -31,6 +31,9 @@ node .opencode-plugin/live/e2e.js --config /path/to/aid.json --opencode /path/to
 - `--config PATH` (or `AID_E2E_CONFIG`): the aid.json to prove. Without either, the suite proves the one the plugin would use, as `aid config --harness opencode` resolves it.
 - `--agents all|ID,...`: rows to run (`aid-orchestrator`, any `aid-*` subagent, `guard`). Include a subagent with `aid-orchestrator`: its evidence comes from a worker's parent session.
 - `--keep`: keep the scratch project even on success (failed and unverified runs keep it automatically).
+- `--timeout SECONDS` (or `AID_E2E_TIMEOUT`): each row's deadline, default 300. A row past it is UNVERIFIED (`TIMEOUT`): its session is interrupted, the last server-log lines for its sessions are printed, and the suite moves on to the next row.
+
+Rows run one at a time and each prints its result as soon as it finishes (`running <row>…`, then the result with its elapsed time); a `SUMMARY` and the `RESULT` line follow at the end. The server's log is written, with its password redacted, to `opencode-server.log` in the scratch project, which is kept unless every row passes.
 - `--opencode PATH`: the OpenCode executable.
 
 Without a config, OpenCode 2, aid or git, it prints `SKIPPED: <reason> (<fix>)` and exits 2 without starting anything.
