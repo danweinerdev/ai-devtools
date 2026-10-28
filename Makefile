@@ -40,9 +40,9 @@ test-opencode:
 
 # The OpenCode 2 live suite: real model calls against a private OpenCode
 # server, driven by your aid.json (AID_E2E_CONFIG=path/to/aid.json). Local
-# only; never part of check or CI. See .opencode-plugin/test/live/README.md.
+# only; never part of check or CI. See .opencode-plugin/live/README.md.
 test-opencode-e2e:
-	@node .opencode-plugin/test/live/e2e.js $(E2E_ARGS)
+	@node .opencode-plugin/live/e2e.js $(E2E_ARGS)
 
 # Release builds of aid: build/<os>-<arch>/aid (aid.exe on Windows). Static
 # (no cgo), stripped of symbols and DWARF, and without local paths. Go has no

@@ -13,7 +13,7 @@
 // this tool's server and probe sessions are cleaned up. Server output is never
 // echoed. This makes real model calls and can incur provider costs.
 //
-//   node .opencode-plugin/test/live/e2e.js --config PATH [--keep] [--opencode PATH] [--agents all|ID,ID,...]
+//   node .opencode-plugin/live/e2e.js --config PATH [--keep] [--opencode PATH] [--agents all|ID,ID,...]
 //   (or set AID_E2E_CONFIG=PATH)
 //
 // Exit status: 0 all PASS, 1 any FAIL, 2 UNVERIFIED, skipped or could not run.
@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url"
 
 import { compareModels, inspectSubagentCalls, modelTuple, primarySessionEvidence, statusMax, summarize } from "./verify-models.js"
 
-const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const PLUGIN_ID = "ai-development"
 const ORCHESTRATOR = "aid-orchestrator"
 const SUBAGENTS = ["aid-craftsman", "aid-creator", "aid-designer", "aid-explorer", "aid-mechanic", "aid-oracle"]
@@ -39,7 +39,7 @@ const STARTUP_TIMEOUT_MS = 60_000
 const RUN_TIMEOUT_MS = 180_000
 const HTTP_TIMEOUT_MS = 10_000
 const MAX_API_BODY = 1024 * 1024
-const USAGE = "Usage: node .opencode-plugin/test/live/e2e.js --config PATH [--keep] [--opencode PATH] [--agents all|ID,ID,...]  (or AID_E2E_CONFIG=PATH)"
+const USAGE = "Usage: node .opencode-plugin/live/e2e.js --config PATH [--keep] [--opencode PATH] [--agents all|ID,ID,...]  (or AID_E2E_CONFIG=PATH)"
 const timer = (ms, callback) => { const value = setTimeout(callback, ms); value.unref?.(); return value }
 const stableError = (code) => { const error = new Error(code); error.code = code; return error }
 const unwrap = (value) => value && typeof value === "object" && "data" in value ? value.data : value

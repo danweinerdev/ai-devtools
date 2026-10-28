@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { SEVERITY, compareModels, globalMark, inspectSubagentCalls, mark, measured, modelTuple, primarySessionEvidence, statusMax, summarize } from "./live/verify-models.js"
+import { SEVERITY, compareModels, globalMark, inspectSubagentCalls, mark, measured, modelTuple, primarySessionEvidence, statusMax, summarize } from "../live/verify-models.js"
 
 const expected = { providerID: "openai", modelID: "gpt-6-luna" }
 const observed = { providerID: "openai", id: "gpt-6-luna" }
