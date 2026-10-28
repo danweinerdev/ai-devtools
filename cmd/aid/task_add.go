@@ -22,7 +22,11 @@ func addTaskCmd(a *app) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			now := a.now()
 			if t.ID == "" {
-				t.ID = newID(now)
+				id, err := newID(now)
+				if err != nil {
+					return err
+				}
+				t.ID = id
 			}
 			t.State = graph.State{Status: graph.Todo}
 			w, _, err := a.open()

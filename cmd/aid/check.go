@@ -120,10 +120,16 @@ func checkCmd(a *app) *cobra.Command {
 	return cmd
 }
 
-// uncoveredPaths are the paths no live task's footprint covers, in the order given.
+// uncoveredPaths are the paths no live task's footprint covers, in the order
+// given, deduplicated.
 func uncoveredPaths(g *graph.Graph, paths []string) []string {
+	seen := make(map[string]bool, len(paths))
 	var out []string
 	for _, p := range paths {
+		if seen[p] {
+			continue
+		}
+		seen[p] = true
 		covered := false
 		for _, t := range g.Tasks {
 			if t.State.Status == graph.Dropped {

@@ -168,6 +168,19 @@ func TestCheckUncoveredPathsPassUnlessStrict(t *testing.T) {
 	r.ok("check", "--paths", "internal/store/txn.go", "--strict")
 	contains(t, r.refused("check", "--strict"), "--strict needs --paths")
 
+	// A repeated path is listed once, in both forms.
+	out = r.ok("check", "--paths", "README.md,README.md")
+	if got := strings.Count(out, "README.md"); got != 1 {
+		t.Fatalf("dedupe: %q listed %d times\n%s", "README.md", got, out)
+	}
+	var dup struct {
+		Uncovered []string `json:"uncovered"`
+	}
+	if err := json.Unmarshal([]byte(r.ok("check", "--json", "--paths", "README.md,README.md")), &dup); err != nil ||
+		len(dup.Uncovered) != 1 || dup.Uncovered[0] != "README.md" {
+		t.Fatalf("--json dedupe: %v %+v", err, dup)
+	}
+
 	var res struct {
 		Uncovered []string `json:"uncovered"`
 	}
