@@ -1,0 +1,12 @@
+{
+  "checks": [
+    {
+      "command": "true",
+      "passed": true,
+      "exitCode": 0,
+      "seconds": 0
+    }
+  ],
+  "done": true,
+  "id": "store"
+}

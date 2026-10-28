@@ -1,0 +1,34 @@
+{
+  "task": {
+    "id": "a",
+    "title": "Task a",
+    "needs": [],
+    "footprint": [
+      "a.go"
+    ],
+    "done": {
+      "result": "r",
+      "checks": [
+        "true"
+      ]
+    },
+    "state": {
+      "status": "dropped",
+      "reason": "superseded by r"
+    }
+  },
+  "dropped": [
+    "a"
+  ],
+  "rewired": [
+    "b"
+  ],
+  "keptAsHistory": [],
+  "dependents": [
+    {
+      "id": "b",
+      "status": "todo",
+      "blocks": true
+    }
+  ]
+}

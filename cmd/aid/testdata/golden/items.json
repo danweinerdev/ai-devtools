@@ -1,0 +1,18 @@
+[
+  {
+    "id": "i1",
+    "kind": "note",
+    "status": "resolved",
+    "text": "a surprising lock behaviour",
+    "resolution": {
+      "as": "task",
+      "where": "store"
+    }
+  },
+  {
+    "id": "i2",
+    "kind": "follow-up",
+    "status": "open",
+    "text": "port the guards"
+  }
+]

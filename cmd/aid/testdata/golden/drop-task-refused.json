@@ -1,0 +1,27 @@
+-- stdout --
+{
+  "detail": {
+    "id": "a",
+    "dependents": [
+      {
+        "id": "b",
+        "status": "todo",
+        "blocks": true
+      },
+      {
+        "id": "d",
+        "status": "done",
+        "blocks": false
+      }
+    ],
+    "transitive": 1
+  },
+  "error": "can't drop \"a\": 1 task(s) with work ahead need it directly\n  b (todo)  [blocks]\n  d (done)  [done: keeps its need as history]\n1 more task(s) with work ahead need those in turn, so handle the whole subtree:\n  - reassign: drop with --replaced-by <ids>, moving every task marked [blocks] onto the replacements\n  - drop all: drop with --cascade, dropping \"a\" and every task with work ahead below it"
+}
+-- stderr --
+aid: can't drop "a": 1 task(s) with work ahead need it directly
+  b (todo)  [blocks]
+  d (done)  [done: keeps its need as history]
+1 more task(s) with work ahead need those in turn, so handle the whole subtree:
+  - reassign: drop with --replaced-by <ids>, moving every task marked [blocks] onto the replacements
+  - drop all: drop with --cascade, dropping "a" and every task with work ahead below it

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "docs",
+    "title": "The docs",
+    "needs": [
+      "store"
+    ],
+    "footprint": [
+      "README.md"
+    ],
+    "done": {
+      "result": "documented",
+      "checks": [
+        "true"
+      ]
+    },
+    "state": {
+      "status": "dropped",
+      "reason": "split into docs-guide, docs-readme"
+    },
+    "effective": "dropped"
+  },
+  {
+    "id": "docs-guide",
+    "title": "Guide",
+    "needs": [
+      "store"
+    ],
+    "footprint": [
+      "skills/"
+    ],
+    "done": {
+      "result": "r",
+      "checks": [
+        "true"
+      ]
+    },
+    "state": {
+      "status": "todo"
+    },
+    "effective": "todo"
+  },
+  {
+    "id": "docs-readme",
+    "title": "README",
+    "needs": [
+      "store"
+    ],
+    "footprint": [
+      "README.md"
+    ],
+    "done": {
+      "result": "r",
+      "checks": [
+        "true"
+      ]
+    },
+    "state": {
+      "status": "todo"
+    },
+    "effective": "todo"
+  }
+]

@@ -1,0 +1,6 @@
+store	in-progress	The store (Make)
+cli	todo	The CLI	[needs: store]
+docs	dropped	The docs	[needs: store]
+docs-guide	todo	Guide	[needs: store]
+docs-readme	todo	README	[needs: store]
+5 tasks (3 todo, 1 in-progress, 1 dropped); 0 open items, 0 resolved

@@ -1,0 +1,3 @@
+dropped a: superseded by r
+  rewired onto the replacements: b
+  done, keeping their need as history: d

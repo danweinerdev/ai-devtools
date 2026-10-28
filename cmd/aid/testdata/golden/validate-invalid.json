@@ -1,0 +1,35 @@
+-- stdout --
+{
+  "detail": {
+    "problems": [
+      {
+        "file": "tasks.json",
+        "problem": "task `a`: title is empty"
+      },
+      {
+        "file": "tasks.json",
+        "problem": "tasks[1]: id \"Bad ID\" must match ^[a-z0-9][a-z0-9-]*$"
+      },
+      {
+        "file": "tasks.json",
+        "problem": "task `Bad ID`: done.checks needs at least one command"
+      },
+      {
+        "file": "tasks.json",
+        "problem": "task `a`: needs `ghost`, which doesn't exist"
+      },
+      {
+        "file": "state.json",
+        "problem": "`top level`: unknown key `extra`"
+      }
+    ]
+  },
+  "error": "invalid: 5 problem(s)\n  tasks.json: task `a`: title is empty\n  tasks.json: tasks[1]: id \"Bad ID\" must match ^[a-z0-9][a-z0-9-]*$\n  tasks.json: task `Bad ID`: done.checks needs at least one command\n  tasks.json: task `a`: needs `ghost`, which doesn't exist\n  state.json: `top level`: unknown key `extra`"
+}
+-- stderr --
+aid: invalid: 5 problem(s)
+  tasks.json: task `a`: title is empty
+  tasks.json: tasks[1]: id "Bad ID" must match ^[a-z0-9][a-z0-9-]*$
+  tasks.json: task `Bad ID`: done.checks needs at least one command
+  tasks.json: task `a`: needs `ghost`, which doesn't exist
+  state.json: `top level`: unknown key `extra`

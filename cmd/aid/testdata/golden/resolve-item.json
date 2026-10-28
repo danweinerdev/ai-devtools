@@ -1,0 +1,10 @@
+{
+  "id": "i1",
+  "kind": "note",
+  "status": "resolved",
+  "text": "a surprising lock behaviour",
+  "resolution": {
+    "as": "task",
+    "where": "store"
+  }
+}

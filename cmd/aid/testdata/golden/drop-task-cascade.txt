@@ -1,0 +1,3 @@
+dropped a: scrapped
+  cascaded to: b, c
+  done, keeping their need as history: d

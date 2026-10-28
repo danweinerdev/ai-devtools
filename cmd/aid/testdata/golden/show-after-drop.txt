@@ -1,0 +1,6 @@
+a	dropped	Task a
+b	todo	Task b	[needs: r]
+c	todo	Task c	[needs: b]
+d	done	Task d	[needs: a]
+r	todo	Task r
+5 tasks (3 todo, 1 done, 1 dropped); 0 open items, 0 resolved

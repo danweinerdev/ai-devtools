@@ -1,0 +1,22 @@
+{
+  "id": "store",
+  "title": "The store (Make)",
+  "needs": [],
+  "footprint": [
+    "internal/store/"
+  ],
+  "done": {
+    "result": "it stores",
+    "checks": [
+      "true"
+    ]
+  },
+  "state": {
+    "status": "in-progress",
+    "claim": {
+      "holder": "oracle",
+      "expires": "2026-01-02T05:04:05Z"
+    }
+  },
+  "effective": "in-progress"
+}

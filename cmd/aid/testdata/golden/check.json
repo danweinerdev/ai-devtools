@@ -1,0 +1,19 @@
+{
+  "tasks": [
+    {
+      "id": "store",
+      "status": "done",
+      "passed": true,
+      "checks": [
+        {
+          "command": "true",
+          "passed": true,
+          "exitCode": 0,
+          "seconds": 0
+        }
+      ]
+    }
+  ],
+  "passed": 1,
+  "failed": 0
+}

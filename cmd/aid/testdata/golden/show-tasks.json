@@ -1,0 +1,52 @@
+[
+  {
+    "id": "store",
+    "title": "The store (Make)",
+    "needs": [],
+    "footprint": [
+      "internal/store/"
+    ],
+    "done": {
+      "result": "it stores",
+      "checks": [
+        "true"
+      ]
+    },
+    "state": {
+      "status": "in-progress",
+      "claim": {
+        "holder": "oracle",
+        "expires": "2026-01-02T05:04:05Z"
+      }
+    },
+    "effective": "in-progress",
+    "dependents": [
+      "cli",
+      "docs",
+      "docs-guide",
+      "docs-readme"
+    ]
+  },
+  {
+    "id": "docs",
+    "title": "The docs",
+    "needs": [
+      "store"
+    ],
+    "footprint": [
+      "README.md"
+    ],
+    "done": {
+      "result": "documented",
+      "checks": [
+        "true"
+      ]
+    },
+    "state": {
+      "status": "dropped",
+      "reason": "split into docs-guide, docs-readme"
+    },
+    "effective": "dropped",
+    "dependents": []
+  }
+]

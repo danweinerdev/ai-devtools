@@ -1,0 +1,8 @@
+-- stdout --
+-- stderr --
+aid: can't drop "a": 1 task(s) with work ahead need it directly
+  b (todo)  [blocks]
+  d (done)  [done: keeps its need as history]
+1 more task(s) with work ahead need those in turn, so handle the whole subtree:
+  - reassign: drop with --replaced-by <ids>, moving every task marked [blocks] onto the replacements
+  - drop all: drop with --cascade, dropping "a" and every task with work ahead below it

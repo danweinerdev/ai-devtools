@@ -1,0 +1,8 @@
+-- stdout --
+-- stderr --
+aid: invalid: 5 problem(s)
+  tasks.json: task `a`: title is empty
+  tasks.json: tasks[1]: id "Bad ID" must match ^[a-z0-9][a-z0-9-]*$
+  tasks.json: task `Bad ID`: done.checks needs at least one command
+  tasks.json: task `a`: needs `ghost`, which doesn't exist
+  state.json: `top level`: unknown key `extra`

@@ -1,0 +1,36 @@
+-- stdout --
+{
+  "detail": {
+    "items": [
+      {
+        "id": "i2",
+        "kind": "follow-up",
+        "status": "open",
+        "text": "port the guards"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "cli",
+        "status": "blocked"
+      },
+      {
+        "id": "docs-guide",
+        "status": "todo"
+      },
+      {
+        "id": "docs-readme",
+        "status": "todo"
+      }
+    ]
+  },
+  "error": "not finished\n3 task(s) left:\n  cli (blocked)\n  docs-guide (todo)\n  docs-readme (todo)\n1 item(s) open:\n  i2 (follow-up) port the guards"
+}
+-- stderr --
+aid: not finished
+3 task(s) left:
+  cli (blocked)
+  docs-guide (todo)
+  docs-readme (todo)
+1 item(s) open:
+  i2 (follow-up) port the guards

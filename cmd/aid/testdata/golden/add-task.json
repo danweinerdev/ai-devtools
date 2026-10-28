@@ -1,0 +1,18 @@
+{
+  "id": "store",
+  "title": "The store (Make)",
+  "needs": [],
+  "footprint": [
+    "internal/store/"
+  ],
+  "done": {
+    "result": "it stores",
+    "checks": [
+      "true"
+    ]
+  },
+  "state": {
+    "status": "todo"
+  },
+  "effective": "todo"
+}

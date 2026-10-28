@@ -1,0 +1,111 @@
+{
+  "tasks": [
+    {
+      "id": "store",
+      "title": "The store (Make)",
+      "needs": [],
+      "footprint": [
+        "internal/store/"
+      ],
+      "done": {
+        "result": "it stores",
+        "checks": [
+          "true"
+        ]
+      },
+      "state": {
+        "status": "in-progress",
+        "claim": {
+          "holder": "oracle",
+          "expires": "2026-01-02T05:04:05Z"
+        }
+      },
+      "effective": "in-progress"
+    },
+    {
+      "id": "cli",
+      "title": "The CLI",
+      "needs": [
+        "store"
+      ],
+      "footprint": [
+        "cmd/aid"
+      ],
+      "done": {
+        "result": "it runs",
+        "checks": [
+          "true"
+        ]
+      },
+      "state": {
+        "status": "todo"
+      },
+      "effective": "todo"
+    },
+    {
+      "id": "docs",
+      "title": "The docs",
+      "needs": [
+        "store"
+      ],
+      "footprint": [
+        "README.md"
+      ],
+      "done": {
+        "result": "documented",
+        "checks": [
+          "true"
+        ]
+      },
+      "state": {
+        "status": "dropped",
+        "reason": "split into docs-guide, docs-readme"
+      },
+      "effective": "dropped"
+    },
+    {
+      "id": "docs-guide",
+      "title": "Guide",
+      "needs": [
+        "store"
+      ],
+      "footprint": [
+        "skills/"
+      ],
+      "done": {
+        "result": "r",
+        "checks": [
+          "true"
+        ]
+      },
+      "state": {
+        "status": "todo"
+      },
+      "effective": "todo"
+    },
+    {
+      "id": "docs-readme",
+      "title": "README",
+      "needs": [
+        "store"
+      ],
+      "footprint": [
+        "README.md"
+      ],
+      "done": {
+        "result": "r",
+        "checks": [
+          "true"
+        ]
+      },
+      "state": {
+        "status": "todo"
+      },
+      "effective": "todo"
+    }
+  ],
+  "items": {
+    "open": 0,
+    "resolved": 0
+  }
+}

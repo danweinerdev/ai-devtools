@@ -1,0 +1,19 @@
+store: The store (Make)
+  status:     in-progress
+  claim:      oracle until 2026-01-02T05:04:05Z
+  needs:      none
+  needed by:  cli, docs, docs-guide, docs-readme
+  footprint:  internal/store/
+  result:     it stores
+  checks:
+    true
+
+docs: The docs
+  status:     dropped
+  reason:     split into docs-guide, docs-readme
+  needs:      store
+  needed by:  none
+  footprint:  README.md
+  result:     documented
+  checks:
+    true

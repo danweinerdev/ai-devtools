@@ -1,0 +1,21 @@
+{
+  "id": "cli",
+  "title": "The CLI",
+  "needs": [
+    "store"
+  ],
+  "footprint": [
+    "cmd/aid"
+  ],
+  "done": {
+    "result": "it runs",
+    "checks": [
+      "true"
+    ]
+  },
+  "state": {
+    "status": "blocked",
+    "reason": "waiting on a decision"
+  },
+  "effective": "blocked"
+}

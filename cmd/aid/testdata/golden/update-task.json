@@ -1,0 +1,20 @@
+{
+  "id": "docs",
+  "title": "The docs",
+  "needs": [
+    "store"
+  ],
+  "footprint": [
+    "README.md"
+  ],
+  "done": {
+    "result": "documented",
+    "checks": [
+      "true"
+    ]
+  },
+  "state": {
+    "status": "todo"
+  },
+  "effective": "todo"
+}
