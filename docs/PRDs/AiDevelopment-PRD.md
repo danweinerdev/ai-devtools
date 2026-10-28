@@ -217,7 +217,7 @@ The same intent and the same Go implementation. The plugin hooks each tool call 
 ## Open Questions
 
 - **Codex routing.** None for now. Revisit if Codex gains plugin-declared agents or a hook that can guard spawns.
-- **Unverified details.** Codex's `sandbox_mode` in role TOML, and Claude ignoring the neutral frontmatter keys, are written from docs and haven't been exercised in a live session yet. OpenCode's skill and agent registration is verified on 2.2.0; the plugin's session, model, and tool hooks are verified only by the local live suite. The `aid` tool's Windows paths (the `LockFileEx` lock, the rename retry, the Job Object that kills a check's process tree, and signal handling) compile and pass `vet` but haven't run on Windows.
+- **Unverified details.** Codex's `sandbox_mode` in role TOML, and Claude ignoring the neutral frontmatter keys, are written from docs and haven't been exercised in a live session yet. The OpenCode plugin is verified live on 2.2.0 by the local suite: registration from the checkout, every `aid-*` agent's routed model (registry, child session, and reply agreeing, dispatched from a parent on a different model), the orchestrator's model and variant, and a guard denial blocking a real subagent call. The `aid` tool's Windows paths (the `LockFileEx` lock, the rename retry, the Job Object that kills a check's process tree, and signal handling) compile and pass `vet` but haven't run on Windows.
 
 ## Appendix: History
 
