@@ -57,6 +57,12 @@
       "path": "skills/aid-make-build/SKILL.md"
     },
     {
+      "name": "aid-make-checks",
+      "loop": "make",
+      "description": "The Checks stage of the Make loop, loaded by aid-make and not an entry point. Finds a task's test and lint commands from the repository's evidence — test configuration, then dependency manifests, then the build system, then imports — with the command each marker implies, where each language keeps its tests, and the mapping from every acceptance criterion to a check, asking instead of guessing when the evidence doesn't settle it. Use it when writing a plan's checks or when it's unclear what to run.",
+      "path": "skills/aid-make-checks/SKILL.md"
+    },
+    {
       "name": "aid-make-delegate",
       "loop": "make",
       "description": "The Delegate stage of the Make loop, loaded by aid-make and not an entry point. Picks ready tasks from the task graph, claims them, and routes each to the cheapest aid-* role or project agent that can succeed, with a complete brief. Independent tasks go out in parallel.",
@@ -77,7 +83,7 @@
     {
       "name": "aid-make-verify",
       "loop": "make",
-      "description": "The Verify stage of the Make loop, loaded by aid-make and not an entry point. Proves a task with captured evidence: while iterating it validates only what the change needs, and a task is marked done only when the task tool has run its checks and they pass. Covers proving new tests can fail and never editing a contract test's assertion to make it pass.",
+      "description": "The Verify stage of the Make loop, loaded by aid-make and not an entry point. Proves a task with captured evidence: while iterating it validates only what the change needs, and a task is marked done only when the task tool has run its checks and they pass. Covers red-first proof and triage, and never editing a contract test's assertion to make it pass.",
       "path": "skills/aid-make-verify/SKILL.md"
     },
     {

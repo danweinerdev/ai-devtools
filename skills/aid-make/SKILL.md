@@ -34,6 +34,7 @@ flowchart LR
 | Stage | Skill | Works from | Result |
 |---|---|---|---|
 | Breakdown | aid-make-breakdown | a PRD with no open question gating this piece | the reviewed breakdown text, then the task graph built from it |
+| Checks | aid-make-checks | a task whose checks aren't settled, and the repository's evidence | the project's own test and lint commands, and where a new test goes |
 | Delegate | aid-make-delegate | the graph's ready frontier | each ready task claimed and routed with a complete brief |
 | Build | aid-make-build | a brief | the change, inside the brief's scope |
 | Verify | aid-make-verify | the change and the task's checks | the task's checks passing, output captured; the task `done` |

@@ -30,7 +30,8 @@ In the chosen strategy's shape. Each step is a task with:
 - **What it builds,** citing the PRD section it serves.
 - **Needs:** the tasks it depends on.
 - **Footprint:** the files, and where useful the classes or functions, it creates or edits.
-- **Definition of done:** the measurable result, and the **checks** that prove it, usually the tests written for the task. Checks are commands that run non-interactively from the repository root and pass or fail by exit code.
+- **Definition of done:** the measurable result, and the **checks** that prove it, usually the tests written for the task. Find the commands from the project's own evidence rather than guessing (aid-make-checks); checks run non-interactively from the repository root and pass or fail by exit code.
+- **Criterion → check:** every acceptance criterion in the PRD sections being built, listed against the task check that proves it. A criterion with no check is recorded as an open state item now (aid-make-checks, aid-state), so the work can't finish while it's unproven.
 - **Role:** the aid-* role that should build it (aid-make-delegate).
 
 A step with no observable result isn't a step. New seams and component responsibilities, and for new systems the layout itself, go to the PRD's `## Layout` as fragments (aid-prd R1).
