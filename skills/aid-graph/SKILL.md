@@ -24,13 +24,14 @@ Each command acts on one piece of work, found by walking up from the current dir
       "needs": [],
       "footprint": ["internal/store/"],
       "done": {"result": "round-trip and rejection tests pass", "checks": ["go test ./internal/store"]},
-      "state": {"status": "in-progress", "claim": {"holder": "aid-oracle", "expires": "2026-01-02T05:04:05Z"}}
+      "state": {"status": "in-progress", "claim": {"holder": "aid-oracle", "expires": "2026-01-02T05:04:05Z"}},
+      "session": "ses_0e7c1a"
     }
   ]
 }
 ```
 
-What you author sits at the top of each task; what the tool owns sits inside `state`, so an edit to one can never clobber the other.
+What you author sits at the top of each task; what the tool owns sits inside `state`, with `history` and `session` beside it because a status change replaces `state` whole. An edit to one can never clobber the other.
 
 | Field | Meaning |
 |---|---|
@@ -43,6 +44,7 @@ What you author sits at the top of each task; what the tool owns sits inside `st
 | `state.status` | `todo`, `in-progress`, `done`, `blocked`, or `dropped` |
 | `state.claim` | `in-progress` only: `holder` and lease `expires` |
 | `state.reason` | `blocked` and `dropped` only |
+| `session` | tool-owned: the harness session the task's builder ran in, set by `claim-task --session`. Every status change keeps it (`done` included), and no command checks it: it's a pointer for continuing the builder, never a lock |
 
 Validation on every load rejects, all at once: unknown or missing keys (with a did-you-mean), nulls, duplicate IDs, needs that don't exist, a task needing itself or a need twice, cycles (each knot once, as `cycle: a → b → a`, naming any other tasks caught in it), a claim on anything but `in-progress`, a reason on anything but `blocked` or `dropped`, a `todo` or `blocked` task needing a dropped one, an `in-progress` task needing one that isn't `done`, and a `done` task needing one that isn't `done` or `dropped`. So no edit can leave a held task waiting on unfinished work: `update-task`, `split-task` and `drop-task --replaced-by` refuse such a rewiring; release the task first.
 
@@ -56,7 +58,7 @@ A task's **effective** status is its status, except that an `in-progress` task w
 | `add-task --title --footprint --result --check [--id] [--needs]` | adds a `todo` task. Its needs must already exist, so add in dependency order. Without `--id` a UUIDv7 is generated; a duplicate ID is refused |
 | `update-task <id> [--title] [--needs] [--footprint] [--result] [--check] [--reason] [--holder]` | changes only the flags given; a list flag replaces the whole list (`--needs=` clears it). Never changes status; a dropped task can't be edited, and neither can a task under a live claim, its holder included. Removing or changing a check, or changing the result, **weakens** the definition of done: refused without `--reason`, and recorded in the task's `history` (when, `--holder`, old and new values, reason), in any status |
 | `split-task <id> --into <ids>` | the parts are added first with `add-task`. They inherit the task's needs, every task that needed it now needs all the parts, and it becomes `dropped` with the reason `split into …`, in one write. Refused on a `done` or `dropped` task, a live claim, or a part the task itself needs (directly or through a chain) |
-| `claim-task <id> [--holder <who>] [--lease 2h]` | marks a ready task `in-progress` for the holder until the lease lapses. One holder at a time; the same holder claiming again renews the lease |
+| `claim-task <id> [--holder <who>] [--lease 2h] [--session <id>]` | marks a ready task `in-progress` for the holder until the lease lapses. One holder at a time; the same holder claiming again renews the lease. `--session` records the harness session the builder runs in, so it can be continued later; a later one replaces it, and a claim without one leaves the recorded session alone |
 | `release-task <id> [--holder <who>]` | an `in-progress` task back to `todo`, claim cleared; only its holder may release a live claim. On a `blocked` task it unblocks it back to `todo` |
 | `block-task <id> --reason <text> [--holder <who>]` | a `todo` or `in-progress` task to `blocked`, claim cleared; a live claim can only be blocked by its holder |
 | `complete-task <id> [--holder <who>]` | runs the task's checks without holding the lock, then marks it `done` only if every check passed and it's still held by the holder with the same checks. A failure leaves it `in-progress` and shows the failing output |
@@ -89,7 +91,7 @@ Every refusal exits 1, writes the message to stderr, and with `--json` also prin
 
 **Writing footprints.** Paths relative to the repository root. They survive rebases and drive `check --paths`, so keep them accurate when a task's scope changes (`update-task`).
 
-**The loop.** `ready` → `claim-task` → build → `complete-task`. `--holder` defaults to `$AID_HOLDER`, else `main`, so an agent working alone never passes it. When work is delegated, the orchestrator runs every status command itself, passing the role it dispatched (`--holder aid-mechanic`) on each one, which keeps one holder per task; the worker runs the brief's checks and reports, and never touches the graph. If the checks fail, the task stays `in-progress`; fix and complete again. If the work can't go on, `block-task` with the reason (`release-task` resumes it later), or `release-task` to hand it back. A long build renews its lease by claiming again.
+**The loop.** `ready` → `claim-task` → build → `complete-task`. `--holder` defaults to `$AID_HOLDER`, else `main`, so an agent working alone never passes it. When work is delegated, the orchestrator runs every status command itself, passing the role it dispatched (`--holder aid-mechanic`) on each one, which keeps one holder per task; the worker runs the brief's checks and reports, and never touches the graph. After dispatch, once the harness returns the session ID, claim again with `--holder <role> --session <id>`, which records the builder and renews the lease. To continue a task's builder, read `session` from `aid show <id>`. If the checks fail, the task stays `in-progress`; fix and complete again. If the work can't go on, `block-task` with the reason (`release-task` resumes it later), or `release-task` to hand it back. A long build renews its lease by claiming again.
 
 **When the plan changes.** No plan survives implementation. Change the graph, not the breakdown:
 - a task turns out bigger than planned: add the parts, then `split-task`;

@@ -32,8 +32,10 @@ func heldMsg(t *Task) string {
 }
 
 // Claim marks a ready task in-progress, held by holder until now+lease. A lapsed
-// lease counts as released; the same holder claiming a live claim renews it.
-func (g *Graph) Claim(id, holder string, lease time.Duration, now time.Time) (Task, error) {
+// lease counts as released; the same holder claiming a live claim renews it. A
+// non-empty session replaces the harness session recorded for the task's
+// builder; empty leaves it alone. Nothing reads it.
+func (g *Graph) Claim(id, holder, session string, lease time.Duration, now time.Time) (Task, error) {
 	if holder == "" {
 		return Task{}, fmt.Errorf("a claim needs a holder")
 	}
@@ -54,6 +56,9 @@ func (g *Graph) Claim(id, holder string, lease time.Duration, now time.Time) (Ta
 		return Task{}, fmt.Errorf("task %q isn't ready; it needs %s", t.ID, strings.Join(unmet, ", "))
 	}
 	t.State = State{Status: InProgress, Claim: Claim{Holder: holder, Expires: now.Add(lease).UTC()}}
+	if session != "" {
+		t.Session = session
+	}
 	return *t, nil
 }
 

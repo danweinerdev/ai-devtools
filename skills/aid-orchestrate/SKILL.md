@@ -59,7 +59,7 @@ Without subagents, play each role yourself in turn and say which one you're play
 
 ## Continuing a specialist
 
-Prefer continuing a specialist that already holds the relevant context (pass its session id) over starting a new one: a follow-up on what an explorer just mapped, a finding on a builder's own change, the next step on the same files. Continue a session only as the role it was first dispatched as; for a different role, start that role and hand it the earlier findings. Tell a continued specialist what changed since its last turn. Start fresh when old context would mislead or bloat it: an unrelated topic, a long session, or a specialist that went wrong.
+Prefer continuing a specialist that already holds the relevant context (pass its session id) over starting a new one: a follow-up on what an explorer just mapped, a finding on a builder's own change, the next step on the same files. During Make the session is recorded on the task (aid-graph), so it survives compaction. Continue a session only as the role it was first dispatched as; for a different role, start that role and hand it the earlier findings. Tell a continued specialist what changed since its last turn. Start fresh when old context would mislead or bloat it: an unrelated topic, a long session, or a specialist that went wrong.
 
 Corrections and follow-ups go to the same session. When a specialist stops for a question, answer from context you hold or bring it to the user, then reply in the same session. If it declines a task as outside its role, reroute or clarify; never resend it unchanged.
 

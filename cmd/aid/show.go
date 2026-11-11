@@ -154,6 +154,9 @@ func writeDetail(b *strings.Builder, d taskDetail) {
 	if !d.State.Claim.IsZero() {
 		fmt.Fprintf(b, "  claim:      %s until %s\n", d.State.Claim.Holder, d.State.Claim.Expires.Format(time.RFC3339))
 	}
+	if d.Session != "" {
+		fmt.Fprintf(b, "  session:    %s\n", d.Session)
+	}
 	if d.State.Reason != "" {
 		fmt.Fprintf(b, "  reason:     %s\n", d.State.Reason)
 	}

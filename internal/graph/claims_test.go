@@ -28,19 +28,19 @@ func valid(t *testing.T, g *Graph) {
 
 func TestClaimsDoubleClaimRefused(t *testing.T) {
 	g := claimsGraph()
-	got, err := g.Claim("a", "oracle", time.Hour, t0)
+	got, err := g.Claim("a", "oracle", "", time.Hour, t0)
 	if err != nil || got.State.Status != InProgress || got.State.Claim.Holder != "oracle" || !got.State.Claim.Expires.Equal(t0.Add(time.Hour)) {
 		t.Fatalf("claim: %+v %v", got, err)
 	}
 	valid(t, g)
-	_, err = g.Claim("a", "mechanic", time.Hour, t0.Add(time.Minute))
+	_, err = g.Claim("a", "mechanic", "", time.Hour, t0.Add(time.Minute))
 	wantErr(t, err, `task "a" is held by "oracle" until 2026-10-27T13:00:00Z`)
 }
 
 func TestClaimsRenewalExtendsExpiry(t *testing.T) {
 	g := claimsGraph()
-	g.Claim("a", "oracle", time.Hour, t0)
-	got, err := g.Claim("a", "oracle", time.Hour, t0.Add(30*time.Minute))
+	g.Claim("a", "oracle", "", time.Hour, t0)
+	got, err := g.Claim("a", "oracle", "", time.Hour, t0.Add(30*time.Minute))
 	if err != nil || !got.State.Claim.Expires.Equal(t0.Add(90*time.Minute)) {
 		t.Fatalf("renewal: %+v %v", got.State, err)
 	}
@@ -48,8 +48,8 @@ func TestClaimsRenewalExtendsExpiry(t *testing.T) {
 
 func TestClaimsLapseThenAnotherHolderClaims(t *testing.T) {
 	g := claimsGraph()
-	g.Claim("a", "oracle", time.Hour, t0)
-	got, err := g.Claim("a", "mechanic", time.Hour, t0.Add(time.Hour))
+	g.Claim("a", "oracle", "", time.Hour, t0)
+	got, err := g.Claim("a", "mechanic", "", time.Hour, t0.Add(time.Hour))
 	if err != nil || got.State.Claim.Holder != "mechanic" {
 		t.Fatalf("claim after lapse: %+v %v", got.State, err)
 	}
@@ -57,21 +57,21 @@ func TestClaimsLapseThenAnotherHolderClaims(t *testing.T) {
 
 func TestClaimsRefusals(t *testing.T) {
 	g := claimsGraph()
-	_, err := g.Claim("b", "h", time.Hour, t0)
+	_, err := g.Claim("b", "h", "", time.Hour, t0)
 	wantErr(t, err, `task "b" isn't ready; it needs a (todo)`)
-	_, err = g.Claim("c", "h", time.Hour, t0)
+	_, err = g.Claim("c", "h", "", time.Hour, t0)
 	wantErr(t, err, `task "c" is done; only todo tasks can be claimed`)
-	_, err = g.Claim("a", "", time.Hour, t0)
+	_, err = g.Claim("a", "", "", time.Hour, t0)
 	wantErr(t, err, "needs a holder")
-	_, err = g.Claim("a", "h", 0, t0)
+	_, err = g.Claim("a", "h", "", 0, t0)
 	wantErr(t, err, "lease must be positive")
-	_, err = g.Claim("zz", "h", time.Hour, t0)
+	_, err = g.Claim("zz", "h", "", time.Hour, t0)
 	wantErr(t, err, `no task "zz" (3 tasks`)
 }
 
 func TestClaimsReleaseByHolderOnly(t *testing.T) {
 	g := claimsGraph()
-	g.Claim("a", "oracle", time.Hour, t0)
+	g.Claim("a", "oracle", "", time.Hour, t0)
 	_, err := g.Release("a", "mechanic", t0)
 	wantErr(t, err, `held by "oracle"`)
 	got, err := g.Release("a", "oracle", t0)
@@ -83,7 +83,7 @@ func TestClaimsReleaseByHolderOnly(t *testing.T) {
 
 func TestClaimsReleaseLapsedClearsStaleClaim(t *testing.T) {
 	g := claimsGraph()
-	g.Claim("a", "oracle", time.Hour, t0)
+	g.Claim("a", "oracle", "", time.Hour, t0)
 	got, err := g.Release("a", "anyone", t0.Add(2*time.Hour))
 	if err != nil || got.State.Status != Todo || !got.State.Claim.IsZero() {
 		t.Fatalf("release of a lapsed claim: %+v %v", got.State, err)
@@ -98,7 +98,7 @@ func TestClaimsBlockAndUnblock(t *testing.T) {
 	g := claimsGraph()
 	_, err := g.Block("a", "  ", "", t0)
 	wantErr(t, err, "needs a reason")
-	g.Claim("a", "oracle", time.Hour, t0)
+	g.Claim("a", "oracle", "", time.Hour, t0)
 	_, err = g.Block("a", "waiting on vendor", "mechanic", t0)
 	wantErr(t, err, `held by "oracle"`)
 	got, err := g.Block("a", "waiting on vendor", "oracle", t0)
@@ -108,7 +108,7 @@ func TestClaimsBlockAndUnblock(t *testing.T) {
 	valid(t, g)
 	_, err = g.Block("a", "again", "", t0)
 	wantErr(t, err, `task "a" is blocked; only todo or in-progress tasks can be blocked`)
-	_, err = g.Claim("a", "oracle", time.Hour, t0)
+	_, err = g.Claim("a", "oracle", "", time.Hour, t0)
 	wantErr(t, err, "is blocked")
 
 	got, err = g.Release("a", "", t0)
@@ -121,7 +121,7 @@ func TestClaimsBlockAndUnblock(t *testing.T) {
 		t.Fatal(err)
 	}
 	g.Release("a", "", t0)
-	g.Claim("a", "oracle", time.Hour, t0)
+	g.Claim("a", "oracle", "", time.Hour, t0)
 	if _, err := g.Block("a", "r", "", t0.Add(time.Hour)); err != nil {
 		t.Fatalf("block after the lease lapsed: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestClaimsHeldBy(t *testing.T) {
 	g := claimsGraph()
 	_, err := g.HeldBy("a", "oracle", t0)
 	wantErr(t, err, `task "a" is todo; claim it first`)
-	g.Claim("a", "oracle", time.Hour, t0)
+	g.Claim("a", "oracle", "", time.Hour, t0)
 	_, err = g.HeldBy("a", "mechanic", t0)
 	wantErr(t, err, `held by "oracle", not "mechanic"`)
 	if _, err := g.HeldBy("a", "oracle", t0.Add(3*time.Hour)); err != nil {
