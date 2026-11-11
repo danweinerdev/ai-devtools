@@ -11,7 +11,7 @@ user-invocable: false
 A task is done only when its verification output has been **captured and shown**: the command run and the output observed in this session. "Should pass" and "passed earlier" don't count.
 
 - **Validate only what the change needs.** While iterating, run the checks that prove this change works and nothing more. Full suites and formal review wait for the completion gates (aid-make-review). If it's unclear what the change needs, ask.
-- **Complete through the tool.** `aid complete-task <id> --holder <role>` runs the task's checks and marks it `done` only if they pass (aid-graph). Show its output.
+- **Complete through the tool, from the main loop.** The orchestrator runs `aid complete-task <id> --holder <role>` (the role it claimed the task for) once the builder reports; it re-runs the task's checks and marks it `done` only if they pass (aid-graph). Show its output. Builders run the brief's check commands and report the output; they never mark their own task done.
 - **Prove new tests can fail.** A test you've only ever seen pass may test nothing, so break the behaviour once or justify why that isn't needed.
 - **A failing contract test is never fixed by editing the assertion.** Assume the code is wrong until evidence says the test is.
 - **Report honestly:** done and verified, done but unverified (say why), partial, or blocked. A blocked task is marked with `aid block-task` and a reason.

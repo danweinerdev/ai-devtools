@@ -89,7 +89,7 @@ Every refusal exits 1, writes the message to stderr, and with `--json` also prin
 
 **Writing footprints.** Paths relative to the repository root. They survive rebases and drive `check --paths`, so keep them accurate when a task's scope changes (`update-task`).
 
-**The loop.** `ready` → `claim-task` → build → `complete-task`. `--holder` defaults to `$AID_HOLDER`, else `main`, so an agent working alone never passes it; a delegated worker passes its role (`--holder aid-mechanic`) on every status command, which keeps one holder per task. If the checks fail, the task stays `in-progress`; fix and complete again. If the work can't go on, `block-task` with the reason (`release-task` resumes it later), or `release-task` to hand it back. A long build renews its lease by claiming again.
+**The loop.** `ready` → `claim-task` → build → `complete-task`. `--holder` defaults to `$AID_HOLDER`, else `main`, so an agent working alone never passes it. When work is delegated, the orchestrator runs every status command itself, passing the role it dispatched (`--holder aid-mechanic`) on each one, which keeps one holder per task; the worker runs the brief's checks and reports, and never touches the graph. If the checks fail, the task stays `in-progress`; fix and complete again. If the work can't go on, `block-task` with the reason (`release-task` resumes it later), or `release-task` to hand it back. A long build renews its lease by claiming again.
 
 **When the plan changes.** No plan survives implementation. Change the graph, not the breakdown:
 - a task turns out bigger than planned: add the parts, then `split-task`;
