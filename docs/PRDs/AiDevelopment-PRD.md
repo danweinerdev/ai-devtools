@@ -188,11 +188,14 @@ The orchestrator is never a subagent. Claude has no `aid-orchestrator` agent fil
 | `aid-explorer` | think | `haiku` | Read-only research: evidence-backed findings, conflicts, search trails. |
 | `aid-mechanic` | make | `sonnet` | Well-specified technical building. Stops on mismatch. |
 | `aid-oracle` | make | `opus` | High-risk or novel implementation, and independent single-lens review. |
+| `aid-sage` | think | `fable` | Principal architect: architecture that crosses projects, the hardest problems, and the PRD review before work is done. Used sparingly. |
 | `aid-designer` | think | `opus` | Visual and UX direction and design review. No production code. |
 | `aid-creator` | make | `sonnet` | First-pass creative work, clearly marked with its soft spots. |
 | `aid-craftsman` | make | `opus` | Complex refinement of a working first pass into a finished one. |
 
 Checking a PRD against the code splits along that line: **finding is research, judging is review**. `aid-explorer` maps each behaviour the PRD describes to the code that implements it, or records a search trail where nothing does, with file:line evidence and no verdict. The judgement (which mismatches matter, and whether the PRD or the code should move) is made by the orchestrator from that map, or by `aid-oracle` in its own context when it has to be independent: at a completion gate, in the adversarial PRD challenge's grounding lens, or when the user asks for an independent check. The oracle gets the explorer's map and the PRD, never the orchestrator's conclusion.
+
+`aid-sage` is the principal architect, and the escalation above `aid-oracle`. The razor between them is scope: the oracle decides architecture contained within one project, and a question that crosses more than one project (shared interfaces, contracts between repositories, a design several codebases must follow) goes to the sage. The sage also takes the really hard problems no other role could settle. It weighs the options against the established principles, gives one recommendation with its trade-offs, and lands architecture as PRD fragments for the user to approve; when settling the design needs code, it may build that piece itself, under the same proof rules as any builder. It is the PRD reviewer just before work is called done: at the final completion gate it checks, in its own context, that the governing PRD still describes what was built and that the architecture holds, and proposes the fragments where it doesn't. Otherwise it's used sparingly: the orchestrator routes to it on its own judgement, never as a default step, and says why.
 
 Every specialist report includes a `## PRD changes proposed` section, which is how R2 ("whoever finds an inconsistency proposes the fix") works across the subagent boundary.
 
