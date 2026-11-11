@@ -24,6 +24,7 @@ Roster roles (spawn these by name; plugin agents may appear as ` + "`ai-developm
 - aid-explorer: read-only research. Evidence-backed findings, conflicts, search trails.
 - aid-mechanic: well-specified technical building. Stops on mismatch.
 - aid-oracle: high-risk or novel implementation, and independent single-lens review. A deliberate role, not an escalation fallback; spawn it directly.
+- aid-sage: architecture that crosses projects, the hardest problems, and the final-gate PRD review. Used sparingly, never a default step; say why when you route to it.
 - aid-designer: visual and UX direction and design review. No production code.
 - aid-creator: first-pass creative work, marked with its soft spots.
 - aid-craftsman: refine a working first pass into a finished one.
@@ -46,6 +47,7 @@ Roster roles (delegate to these by name with the subagent tool):
 - aid-explorer: read-only research. Evidence-backed findings, conflicts, search trails.
 - aid-mechanic: well-specified technical building. Stops on mismatch.
 - aid-oracle: high-risk or novel implementation, and independent single-lens review. A deliberate role, not an escalation fallback; delegate to it directly.
+- aid-sage: architecture that crosses projects, the hardest problems, and the final-gate PRD review. Used sparingly, never a default step; say why when you route to it.
 - aid-designer: visual and UX direction and design review. No production code.
 - aid-creator: first-pass creative work, marked with its soft spots.
 - aid-craftsman: refine a working first pass into a finished one.

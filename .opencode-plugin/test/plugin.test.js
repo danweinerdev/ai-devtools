@@ -7,7 +7,7 @@ import { modelRef, routesFrom, splitModel, unsupportedVariants } from "../src/ro
 import { PACKAGE_ROOT, createSetup, guardVerdict } from "../src/setup.js"
 import { fakeAid, fakeContext, ok } from "./fake-opencode.js"
 
-const ROSTER = ["aid-craftsman", "aid-creator", "aid-designer", "aid-explorer", "aid-mechanic", "aid-oracle", "aid-orchestrator"]
+const ROSTER = ["aid-craftsman", "aid-creator", "aid-designer", "aid-explorer", "aid-mechanic", "aid-oracle", "aid-orchestrator", "aid-sage"]
 
 const CONFIG = {
   source: ".opencode/aid.json",
@@ -49,7 +49,7 @@ test("a context without agent.transform (not OpenCode 2) is left alone", async (
   assert.equal(await createSetup({ aid: standardAid().aid })({}), undefined)
 })
 
-test("all seven aid-* agents register with their modes, prompts and the orchestrator as default", async () => {
+test("all eight aid-* agents register with their modes, prompts and the orchestrator as default", async () => {
   const { agents, state, dispose } = await boot()
   for (const name of ROSTER) assert.ok(agents.has(name), `${name} registered`)
   assert.equal(agents.get(ORCHESTRATOR).mode, "primary")
@@ -88,7 +88,7 @@ test("mapped agents get their profile's model and variant; unmapped ones inherit
   const { agents, dispose } = await boot()
   assert.deepEqual(agents.get("aid-explorer").model, { providerID: "acme", id: "fast-1" })
   assert.deepEqual(agents.get("aid-oracle").model, { providerID: "acme", id: "deep-2", variant: "high" })
-  for (const name of ["aid-mechanic", "aid-creator", "aid-designer", "aid-craftsman"]) assert.equal(agents.get(name).model, undefined, name)
+  for (const name of ["aid-mechanic", "aid-creator", "aid-designer", "aid-craftsman", "aid-sage"]) assert.equal(agents.get(name).model, undefined, name)
   await dispose()
 })
 
@@ -120,7 +120,7 @@ test("an invalid config is surfaced loudly and agents register without routing",
   const { agents, hooks, dispose } = await boot({ aid, logs })
   assert.ok(logs.some((line) => line.includes("model routing is off") && line.includes("modles")))
   assert.equal(agents.get("aid-explorer").model, undefined)
-  assert.equal(agents.size, 7)
+  assert.equal(agents.size, 8)
   const event = { agent: ORCHESTRATOR, options: {}, system: [] }
   await hooks.session.context(event)
   assert.ok(event.system.some((part) => part.text.includes("modles")), "the orchestrator is told too")
@@ -131,7 +131,7 @@ test("without aid on PATH: agents and skills still register, routing is off, gua
   const logs = []
   const { aid } = fakeAid({})
   const { agents, skills, hooks, dispose } = await boot({ aid, logs })
-  assert.equal(agents.size, 7)
+  assert.equal(agents.size, 8)
   assert.equal(skills.size, 22)
   assert.ok(logs.some((line) => line.includes("aid is not on PATH")))
   await hooks.tool["execute.before"]({ tool: "shell", input: { command: "ls" }, sessionID: "s", agent: ORCHESTRATOR })

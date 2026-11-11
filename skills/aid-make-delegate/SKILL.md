@@ -17,11 +17,14 @@ user-invocable: false
 | aid-explorer | research, locating, comparing options, reading branches and references | deciding |
 | aid-mechanic | well-specified technical building: features from a clear spec, tests, wiring, refactors | open design questions |
 | aid-oracle | high-risk or novel implementation (concurrency, security, data migration, core algorithms) | routine work, where it's wasted |
+| aid-sage | cross-project architecture, a problem another specialist reported it couldn't settle, and the final-gate PRD review | one project's contained architecture (aid-oracle's), and routine work |
 | aid-designer | visual and UX direction: flows, layout, interaction, visual language | writing production code |
 | aid-creator | first-pass creative work: drafts, copy, prototypes, sketches, first versions | final polish |
 | aid-craftsman | complex refinement: turning a working first pass into a finished one, hard polish, deep cleanup | greenfield first passes |
 
 Project agents are routing targets too, when their description fits the task better than a built-in role. Models are configured per harness; don't name models in briefs.
+
+Route to aid-sage sparingly, on the orchestrator's judgement, never as a default step, and say why. A question that crosses more than one project is its; one contained in a project is aid-oracle's. So is a problem another specialist reported it couldn't settle, and the PRD review at the final completion gate.
 
 ## The brief
 

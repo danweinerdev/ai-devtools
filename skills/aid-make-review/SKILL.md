@@ -1,6 +1,6 @@
 ---
 name: aid-make-review
-description: The Review stage of the Make loop, loaded by aid-make and not an entry point. Runs intent-isolated review lenses (PRD compliance, goal drift, quality, fresh eyes, plus project reviewer agents) at the completion gates, re-runs every task's checks as one batch, and gives every finding an outcome. Use the timing rules to decide when a review is due.
+description: The Review stage of the Make loop, loaded by aid-make and not an entry point. Runs intent-isolated review lenses (PRD compliance, goal drift, quality, fresh eyes, plus project reviewer agents) at the completion gates, re-runs every task's checks as one batch, and gives every finding an outcome. At the final gate, aid-sage reviews in its own context whether the governing PRD still describes what was built. Use the timing rules to decide when a review is due.
 user-invocable: false
 ---
 
@@ -40,6 +40,10 @@ Reviewer value comes from **intent isolation**: each lens gets only its inputs, 
 - **Weakened proof** is a quality finding of its own kind: a check that passes without proving what it did. Look in the diff's tests and in any check commands for a test deleted, skipped, or marked expected-to-fail; an assertion removed, loosened (wider tolerance, weaker matcher, `any` where a value was checked), or rewritten to match whatever the code now outputs; a test narrowed until it no longer reaches the code it names; mocks that replace the very code under test; and a check command narrowed (a `-run` filter, a smaller package list, `|| true`, an exit code swallowed).
 - Goal drift may run the feature or read its tests as well as the code: judging whether a goal was achieved often needs more than the diff.
 - When reviews can't run in isolated contexts, run them one after another and **label the review as serial**. Don't present a single pass as an independent review.
+
+## The final PRD review
+
+The final completion gate has one more reader the lenses don't replace: **aid-sage**. It runs in its own context with the governing PRD and the built result (the diff and the code it touches), and nothing else: not the orchestrator's conclusion, the lenses' findings, the breakdown, the task graph, or the builders' reports. That isolation is the same rule as the lenses'. It checks that the PRD still describes what was built and that the architecture holds, and proposes fragments where either has drifted. It is not one of the lenses, runs in addition to them, and only at the last gate: route to it on the orchestrator's judgement, say why, and never as a default step.
 
 ## Synthesis
 

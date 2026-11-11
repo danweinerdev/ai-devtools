@@ -32,7 +32,7 @@ var (
 )
 
 // roster is the aid-* specialists, which run as subagents.
-var roster = []string{"aid-explorer", "aid-mechanic", "aid-oracle", "aid-designer", "aid-creator", "aid-craftsman"}
+var roster = []string{"aid-explorer", "aid-mechanic", "aid-oracle", "aid-sage", "aid-designer", "aid-creator", "aid-craftsman"}
 
 // openCodeGuards run in order; the first deny decides, and an ask stands
 // only when none denies.

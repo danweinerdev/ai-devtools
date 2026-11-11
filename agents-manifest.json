@@ -104,6 +104,21 @@
       ],
       "description": "Senior engineer for high-risk work and independent review. It implements novel or dangerous changes (concurrency, security, data migration, core algorithms, irreversible operations) and reviews work through the single isolated lens its brief names (PRD compliance, goal drift, quality, fresh eyes, or one of the adversarial PRD challenge lenses). Use it when being wrong is expensive, or for any review that has to be independent.",
       "path": "agents/aid-oracle.md"
+    },
+    {
+      "name": "aid-sage",
+      "role": "sage",
+      "loop": "think",
+      "model": "fable",
+      "readOnly": false,
+      "capabilities": [
+        "cross-project-architecture",
+        "hard-problems",
+        "final-prd-review",
+        "high-risk-implementation"
+      ],
+      "description": "Principal architect for architecture that crosses more than one project, the hardest problems no other role could settle, and the PRD review before work is called done. It weighs options against established principles, gives one recommendation with its trade-offs, and lands architecture as PRD fragments; when settling a design needs code, it builds that piece under the normal proof rules. Use it sparingly, on the orchestrator's judgement, never as a default step; architecture inside one project belongs to aid-oracle.",
+      "path": "agents/aid-sage.md"
     }
   ]
 }
