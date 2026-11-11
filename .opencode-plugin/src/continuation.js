@@ -8,9 +8,11 @@
 // rejects a continuation under any other one. Continuing as the same agent is
 // always allowed.
 //
-// It never blocks on doubt: when the original agent can't be established (no
-// dispatch seen, history compacted, a lookup that fails or times out), the
-// call goes through.
+// For a child whose dispatch it didn't see, it reads the agent from the
+// child's history; compacted history gives the agent the child had when it
+// was compacted. It never blocks on doubt: when no agent can be established
+// (no agent in the history, a lookup that fails or times out, no history
+// API), the call goes through.
 
 /** OpenCode 2's subagent tool: `{agent, prompt, description, sessionID?, background?, model?}`. */
 export const SUBAGENT_TOOL = "subagent"
@@ -28,13 +30,14 @@ function id(value) {
  * The agent a session was first run as, from its chronological context
  * history: the first assistant message's agent, or the agent an agent switch
  * moved away from (or, with no previous agent, the one it set). A compaction
- * met first means the start of the history is gone, so the answer is unknown.
+ * met first means the start of the history is gone, and compaction messages
+ * carry no agent, so the same rule reads what follows it: the agent the
+ * session had when it was compacted.
  */
 export function originalAgentFromHistory(messages) {
   if (!Array.isArray(messages)) return undefined
   for (const message of messages) {
     if (!object(message)) continue
-    if (message.type === "compaction") return undefined
     if (message.type === "agent-switched") return id(message.previous) ?? id(message.agent)
     if (message.type === "assistant") return id(message.agent)
   }

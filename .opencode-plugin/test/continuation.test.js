@@ -84,6 +84,23 @@ test("an unseen dispatch is recovered from the session's context history", async
     "from-assistant": [{ type: "user", text: "hi" }, { type: "assistant", agent: "aid-mechanic" }, { type: "assistant", agent: "aid-oracle" }],
     "from-switch": [{ type: "agent-switched", agent: "aid-oracle", previous: "aid-mechanic" }, { type: "assistant", agent: "aid-oracle" }],
     "from-initial-switch": [{ type: "agent-switched", agent: "aid-mechanic" }, { type: "assistant", agent: "aid-oracle" }],
+    // Compacted history has lost its start, so the agent comes from what follows the compaction.
+    "compacted": [
+      { type: "compaction", status: "completed", reason: "auto", summary: "..." },
+      { type: "user", text: "more" },
+      { type: "assistant", agent: "aid-mechanic" },
+      { type: "assistant", agent: "aid-oracle" },
+    ],
+    "compacted-then-switch": [
+      { type: "compaction", status: "completed", reason: "auto", summary: "..." },
+      { type: "agent-switched", agent: "aid-oracle", previous: "aid-mechanic" },
+      { type: "assistant", agent: "aid-oracle" },
+    ],
+    "compacted-twice": [
+      { type: "compaction", status: "completed", reason: "auto", summary: "..." },
+      { type: "compaction", status: "completed", reason: "manual", summary: "..." },
+      { type: "assistant", agent: "aid-mechanic" },
+    ],
   }
   const asked = []
   const env = await boot({
@@ -100,9 +117,9 @@ test("an unseen dispatch is recovered from the session's context history", async
   await env.dispose()
 })
 
-test("unknown identity fails open: compaction, no agent, lookup failure, timeout, no context API", async () => {
+test("unknown identity fails open: no agent, lookup failure, timeout, no context API", async () => {
   const cases = {
-    compaction: async () => [{ type: "compaction" }, { type: "assistant", agent: "aid-mechanic" }],
+    "compaction with no agent after it": async () => [{ type: "compaction" }, { type: "user", text: "more" }],
     "no agent yet": async () => [{ type: "user", text: "hi" }],
     "not a list": async () => ({ data: null }),
     "lookup throws": () => {
@@ -152,4 +169,7 @@ test("originalAgentFromHistory reads the first decisive message", () => {
   assert.equal(originalAgentFromHistory([null, { type: "assistant", agent: "a" }]), "a")
   assert.equal(originalAgentFromHistory([{ type: "agent-switched", previous: "", agent: "b" }]), "b")
   assert.equal(originalAgentFromHistory([{ type: "assistant", agent: "" }]), undefined)
+  assert.equal(originalAgentFromHistory([{ type: "compaction" }, { type: "assistant", agent: "c" }]), "c")
+  assert.equal(originalAgentFromHistory([{ type: "assistant", agent: "d" }, { type: "compaction" }, { type: "assistant", agent: "e" }]), "d")
+  assert.equal(originalAgentFromHistory([{ type: "compaction" }]), undefined)
 })
