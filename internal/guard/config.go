@@ -47,7 +47,7 @@ var (
 	sensitiveKeys = []string{"rules"}
 	ruleKeys      = []string{"name", "patterns", "paths", "allow_agents"}
 
-	// The efforts the model router accepts (its REASONING_EFFORTS).
+	// The reasoning efforts a profile may name.
 	efforts     = []string{"none", "minimal", "low", "medium", "high", "xhigh"}
 	profileName = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*$`)
 	// inheritProfile maps an agent to the session model; no profile may use it.
