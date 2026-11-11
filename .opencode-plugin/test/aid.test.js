@@ -1,7 +1,7 @@
 // runAid against a real child process: a node script standing in for aid, so
 // it runs the same on every OS.
 import assert from "node:assert/strict"
-import { mkdtempSync, writeFileSync } from "node:fs"
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -9,6 +9,7 @@ import test from "node:test"
 import { failure, runAid } from "../src/aid.js"
 
 const dir = mkdtempSync(join(tmpdir(), "aid-stub-"))
+test.after(() => rmSync(dir, { recursive: true, force: true }))
 const stub = join(dir, "aid.mjs")
 writeFileSync(
   stub,

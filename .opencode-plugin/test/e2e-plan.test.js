@@ -127,11 +127,12 @@ test("probe failures: deadline, request timeout, anything else", () => {
   assert.equal(probeFailure(new Error("boom"), live.signal), "DISPATCH_COULD_NOT_RUN")
 })
 
-test("server log: password redacted, written to a private file, tail filtered by session", async () => {
-  const { mkdtemp, readFile, stat } = await import("node:fs/promises")
+test("server log: password redacted, written to a private file, tail filtered by session", async (t) => {
+  const { mkdtemp, readFile, rm, stat } = await import("node:fs/promises")
   const { tmpdir } = await import("node:os")
   const { join } = await import("node:path")
   const dir = await mkdtemp(join(tmpdir(), "aid-e2e-log-"))
+  t.after(() => rm(dir, { recursive: true, force: true }))
   const log = serverLog(join(dir, "opencode-server.log"))
   log.write("opencode server listening\nserver password s3cr3t-pw\n")
   assert.match(log.raw, /s3cr3t-pw/) // kept in memory only until it's read
@@ -202,12 +203,17 @@ test("jsonc: comments and trailing commas go, strings (URLs) stay", () => {
   assert.throws(() => isolatedGlobalConfig("[1]"), /GLOBAL_OPENCODE_CONFIG_SCHEMA/)
 })
 
-test("the suite's server sees the user's global config without plugins, and nothing else can add one", async () => {
-  const { mkdtemp, readFile, mkdir, writeFile, stat } = await import("node:fs/promises")
+test("the suite's server sees the user's global config without plugins, and nothing else can add one", async (t) => {
+  const { mkdtemp, readFile, mkdir, rm, writeFile, stat } = await import("node:fs/promises")
   const { tmpdir } = await import("node:os")
   const { join } = await import("node:path")
-  const user = await mkdtemp(join(tmpdir(), "aid-e2e-user-"))
-  const root = await mkdtemp(join(tmpdir(), "aid-e2e-root-"))
+  const temp = async (prefix) => {
+    const dir = await mkdtemp(join(tmpdir(), prefix))
+    t.after(() => rm(dir, { recursive: true, force: true }))
+    return dir
+  }
+  const user = await temp("aid-e2e-user-")
+  const root = await temp("aid-e2e-root-")
   await mkdir(join(user, "opencode"), { recursive: true })
   await writeFile(join(user, "opencode", "opencode.json"), JSON.stringify({ plugins: ["/clone"], providers: { p: { name: "P" } }, model: "p/m" }))
   const env = await isolatedServerEnv(root, { XDG_CONFIG_HOME: user, OPENCODE_CONFIG: "/elsewhere.json", OPENCODE_CONFIG_DIR: "/elsewhere", KEEP: "1" })
@@ -219,7 +225,7 @@ test("the suite's server sees the user's global config without plugins, and noth
   assert.deepEqual(copied, { providers: { p: { name: "P" } }, model: "p/m" })
   if (process.platform !== "win32") assert.equal((await stat(join(root, "xdg-config", "opencode", "opencode.json"))).mode & 0o777, 0o600)
   // No global config at all: an empty scratch config dir, still isolated.
-  const bare = await mkdtemp(join(tmpdir(), "aid-e2e-root-"))
+  const bare = await temp("aid-e2e-root-")
   const env2 = await isolatedServerEnv(bare, { XDG_CONFIG_HOME: join(user, "nothing-here") })
   assert.equal(env2.XDG_CONFIG_HOME, join(bare, "xdg-config"))
 })
