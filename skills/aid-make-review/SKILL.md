@@ -34,6 +34,7 @@ Reviewer value comes from **intent isolation**: each lens gets only its inputs, 
 | Project reviewers | what their own description asks for | their specialty |
 
 - aid-oracle is the default reviewer for the built-in lenses. aid-designer reviews UX and visual work. Dispatch the lenses in parallel, and don't pre-read their inputs into the orchestrator, because that collapses independent views into one.
+- A lens may be continued to add context or narrow it, within the inputs it's allowed to see. Intent isolation still rules: a lens is never continued from a builder's session.
 - **Weakened proof** is a quality finding of its own kind: a check that passes without proving what it did. Look in the diff's tests and in any check commands for a test deleted, skipped, or marked expected-to-fail; an assertion removed, loosened (wider tolerance, weaker matcher, `any` where a value was checked), or rewritten to match whatever the code now outputs; a test narrowed until it no longer reaches the code it names; mocks that replace the very code under test; and a check command narrowed (a `-run` filter, a smaller package list, `|| true`, an exit code swallowed).
 - Goal drift may run the feature or read its tests as well as the code: judging whether a goal was achieved often needs more than the diff.
 - When reviews can't run in isolated contexts, run them one after another and **label the review as serial**. Don't present a single pass as an independent review.

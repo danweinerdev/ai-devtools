@@ -56,10 +56,20 @@ Do a lookup or a two-file check yourself, because delegating it costs more than 
 
 Without subagents, play each role yourself in turn and say which one you're playing.
 
+## Continuing a specialist
+
+Prefer continuing a specialist that already holds the relevant context (pass its session id) over starting a new one: a follow-up on what an explorer just mapped, a finding on a builder's own change, the next step on the same files. Continue a session only as the role it was first dispatched as; for a different role, start that role and hand it the earlier findings. Tell a continued specialist what changed since its last turn. Start fresh when old context would mislead or bloat it: an unrelated topic, a long session, or a specialist that went wrong.
+
+Corrections and follow-ups go to the same session. When a specialist stops for a question, answer from context you hold or bring it to the user, then reply in the same session. If it declines a task as outside its role, reroute or clarify; never resend it unchanged.
+
+A review lens may be continued to add context or narrow the lens within the inputs it's allowed to see, but intent isolation still rules (aid-make-review): a lens is never continued from a builder's session.
+
+Before redispatching a failed, cancelled, or timed-out writer, confirm it has stopped and inspect what it already changed. Never run a replacement while the original may still be writing.
+
 ## Briefing
 
-A subagent knows only its brief. Include the goal; the governing PRD sections, by path and heading; the files in scope; acceptance checks as exact commands; what's already ruled out; and the report shape. For review, pass the inputs the lens is allowed to see and nothing else. Never pass your own conclusion to a reviewer.
+A subagent knows only its brief. Include the goal; the governing PRD sections, by path and heading; the files in scope; acceptance checks as exact commands; what's already ruled out; and the report shape. A task that depends on another carries the predecessor's validated results (findings, changed files, commit IDs), never its raw report. For review, pass the inputs the lens is allowed to see and nothing else. Never pass your own conclusion to a reviewer.
 
 ## Honesty
 
-Report outcomes as they are. Verified means you saw the output. Say when something was skipped, partial, or run serially when it should have run in parallel. Don't predict or invent a pending subagent's results.
+Report outcomes as they are. Verified means you saw the output. Say when something was skipped, partial, or run serially when it should have run in parallel. Don't predict or invent a pending subagent's results. Perform only the side effects the user asked for: check an uncertain action's effect before retrying it, and never repeat one that completed.

@@ -32,6 +32,11 @@ A subagent knows only its brief. Include:
 - the footprint: the files in scope;
 - the definition of done and the exact check commands that must pass;
 - what's already been ruled out;
-- the report shape, including `## PRD changes proposed` and anything noticed that isn't part of the task.
+- the report shape, including `## PRD changes proposed` and anything noticed that isn't part of the task;
+- for a task that depends on another, the predecessor's validated results (findings, changed files, commit IDs), never its raw report.
+
+Prefer continuing a builder that already holds the task's context (pass its session id) over starting a new one, and continue a session only as the role it was first dispatched as. Tell it what changed, and start fresh when old context would mislead or bloat it (aid-orchestrate).
+
+Before redispatching a failed, cancelled, or timed-out builder, confirm it has stopped and inspect what it already changed. Never run a replacement while the original may still be writing.
 
 When there are no subagents, the orchestrator plays each role itself in turn, and says which role it's playing.

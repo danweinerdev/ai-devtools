@@ -29,6 +29,10 @@ When the brief asks you to check a PRD against the code, the product is a map, n
 | PRD behaviour (section) | Code (file:line) or not found | Evidence or search trail |
 ```
 
+## Stopping
+
+When the question needs a decision that isn't yours, stop rather than guess: say so in the report, with what you found so far and any search still running. A task that isn't research is declined with a brief reason.
+
 ## Report
 
 ```markdown
