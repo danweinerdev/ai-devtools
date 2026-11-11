@@ -8,13 +8,16 @@
 // `aid config`, guard decisions come from `aid guard opencode-tool`, and the
 // orchestrator's routing policy from `aid guard policy`. Without aid the
 // plugin still registers agents and skills, warns loudly, and lets every tool
-// call through: guards fail open, agents run on the session's model.
+// call through: guards fail open, agents run on the session's model. The one
+// guard that lives here, not in aid, keeps a subagent session on the agent it
+// was dispatched as (continuation.js); it needs only OpenCode.
 
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { failure, runAid } from "./aid.js"
 import { ORCHESTRATOR, applyAgent, loadAgents } from "./agents.js"
+import { DEFAULT_HISTORY_TIMEOUT_MS, createContinuationGuard, deletedSessionID } from "./continuation.js"
 import { hiddenRoutedModels, modelRef, removeFreeModels, routesFrom, unsupportedVariants } from "./routing.js"
 import { loadSkills, registerSkills } from "./skills.js"
 
@@ -76,7 +79,13 @@ async function askUser(ctx, event, verdict) {
   }
 }
 
-export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs = 10_000, log = (line) => console.error(line) } = {}) {
+export function createSetup({
+  root = PACKAGE_ROOT,
+  aid = runAid,
+  guardTimeoutMs = 10_000,
+  historyTimeoutMs = DEFAULT_HISTORY_TIMEOUT_MS,
+  log = (line) => console.error(line),
+} = {}) {
   return async function setup(ctx) {
     if (typeof ctx?.agent?.transform !== "function") return
 
@@ -269,7 +278,19 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
         if (typeof event.metadata?.reason === "string") event.message = event.metadata.reason
       })
     }
+    // A subagent session stays on the agent it was dispatched as. This check
+    // runs before aid's guard: it needs no aid, so it holds when aid is
+    // missing; and a call it rejects never reaches aid, so the user is never
+    // asked to approve a call that is blocked anyway, and aid never counts a
+    // delegation (which resets the inline budget) that didn't happen.
+    const continuation = createContinuationGuard({
+      history: typeof ctx.session.context === "function" ? (sessionID) => ctx.session.context({ sessionID }) : undefined,
+      timeoutMs: historyTimeoutMs,
+    })
+    await ctx.tool.hook("execute.after", (event) => continuation.record(event))
+
     await ctx.tool.hook("execute.before", async (event) => {
+      await continuation.check(event)
       const input = JSON.stringify({
         tool: event.tool,
         args: object(event.input) ? event.input : {},
@@ -294,6 +315,7 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
       try {
         for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
           if (event?.type === "model.updated") await revalidateVariants()
+          continuation.forget(deletedSessionID(event))
         }
       } catch {}
     })()
@@ -302,6 +324,7 @@ export function createSetup({ root = PACKAGE_ROOT, aid = runAid, guardTimeoutMs 
 
     return async () => {
       controller.abort()
+      continuation.clear()
     }
   }
 }
