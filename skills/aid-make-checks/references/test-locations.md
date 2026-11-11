@@ -7,7 +7,7 @@ The project's existing tests are the first evidence: find tests of the same kind
 | Python | `tests/` at the project root, mirroring the package directories; a configured `testpaths` wins | `test_*.py` or `*_test.py` |
 | JavaScript / TypeScript | `__tests__/`, `tests/`, or beside the source; the runner's `testMatch` wins | `*.test.*` or `*.spec.*` |
 | Go | the same package directory as the code under test | `*_test.go`; fixtures in `testdata/` |
-| Rust | unit tests in a `#[cfg(test)]` module in the source file; integration tests in `tests/` | any name under `tests/`; `*_test.rs` is common |
+| Rust | unit tests in `#[cfg(test)] mod tests` in the source file; integration tests as top-level files in `tests/` (or `tests/<name>/main.rs`); shared helpers in `tests/common/mod.rs` | any name under `tests/` |
 | Java | `src/test/java/...`, mirroring the main package path | `*Test.java` or `Test*.java` |
 | Kotlin | `src/test/kotlin/...`, mirroring the main package path | `*Test.kt` |
 | C# | a sibling test project such as `<Project>.Tests/`, mirroring namespaces | `*Tests.cs` or `*Test.cs` |
