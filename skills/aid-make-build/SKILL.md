@@ -9,6 +9,7 @@ user-invocable: false
 **Loop:** make
 
 - **Stay inside the footprint.** A change outside the files in scope is either a sign the plan is wrong (report it) or scope creep (don't).
+- **Tests prove the described behaviour.** Test one concept per test, named for the behaviour; mock only real system boundaries; wait on conditions, never fixed delays; leave out tests that prove nothing. The principles and their anti-patterns, with examples, are in [references/test-design.md](references/test-design.md).
 - **Stop on any mismatch.** If reality doesn't match the brief, the PRD, or the graph (a file isn't where it should be, an API behaves differently, a step can't work as written), stop and report it. Don't improvise around it. The orchestrator decides: update the task, split it, drop it, or take it to aid-think.
 - **Inconsistencies become fragments.** A builder that finds a PRD inconsistency writes the fragment itself (aid-prd R2) in its report under `## PRD changes proposed`. The orchestrator shows it to the user.
 - **Report what isn't the task.** Notes, follow-ups, and questions noticed along the way go in the report. The orchestrator records them as state items (aid-state).

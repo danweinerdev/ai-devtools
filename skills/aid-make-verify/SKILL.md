@@ -1,6 +1,6 @@
 ---
 name: aid-make-verify
-description: The Verify stage of the Make loop, loaded by aid-make and not an entry point. Proves a task with captured evidence: while iterating it validates only what the change needs, and a task is marked done only when the task tool has run its checks and they pass. Covers proving new tests can fail and never editing a contract test's assertion to make it pass.
+description: The Verify stage of the Make loop, loaded by aid-make and not an entry point. Proves a task with captured evidence: while iterating it validates only what the change needs, and a task is marked done only when the task tool has run its checks and they pass. Covers red-first proof and triage, and never editing a contract test's assertion to make it pass.
 user-invocable: false
 ---
 
@@ -10,10 +10,10 @@ user-invocable: false
 
 A task is done only when its verification output has been **captured and shown**: the command run and the output observed in this session. "Should pass" and "passed earlier" don't count.
 
-- **Validate only what the change needs.** While iterating, run the checks that prove this change works and nothing more. Full suites and formal review wait for the completion gates (aid-make-review). If it's unclear what the change needs, ask.
+- **Validate only what the change needs.** While iterating, run the checks that prove this change works and nothing more. Full suites and formal review wait for the completion gates (aid-make-review). If it's unclear what the change needs, find the command in the repository's evidence or ask (aid-make-checks).
 - **Complete through the tool, from the main loop.** The orchestrator runs `aid complete-task <id> --holder <role>` (the role it claimed the task for) once the builder reports; it re-runs the task's checks and marks it `done` only if they pass (aid-graph). Show its output. Builders run the brief's check commands and report the output; they never mark their own task done.
-- **Prove new tests can fail.** A test you've only ever seen pass may test nothing, so break the behaviour once or justify why that isn't needed.
-- **A failing contract test is never fixed by editing the assertion.** Assume the code is wrong until evidence says the test is.
+- **Red first, then prove a test can fail.** When a task adds tests for behaviour the code doesn't have, run them on the unchanged tree before building and capture the failure. Classify each failure before trusting the test: an assertion failure alone doesn't settle it, because a wrong expected value fails the same way (references/red-first.md). A broken test is fixed before building; a new check that already passes goes to the user and never onto the task as a check. If a pre-change red run wasn't possible — a test for existing behaviour — break the behaviour once or say why that isn't practical.
+- **Triage a post-change failure.** It's a source bug until evidence says otherwise. A failing contract test is never fixed by editing the assertion: an expected value changes only when the PRD or a spec the user owns says the test is wrong, never because the implementation now outputs something else. Every such change is weakened proof and goes to the user (references/red-first.md).
 - **Report honestly:** done and verified, done but unverified (say why), partial, or blocked. A blocked task is marked with `aid block-task` and a reason.
 
 When the ready frontier is empty and every task is done, the feature is complete: hand to aid-make-review.

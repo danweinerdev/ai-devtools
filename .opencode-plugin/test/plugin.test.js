@@ -72,11 +72,11 @@ test("read-only agents get the edit-deny rule, others don't, and it isn't duplic
   await dispose()
 })
 
-test("all 21 skills register in place, without frontmatter, replacing older copies", async () => {
+test("all 22 skills register in place, without frontmatter, replacing older copies", async () => {
   const fake = fakeContext({ catalog: CATALOG })
   await fake.ctx.skill.transform((editor) => editor.add({ id: "aid-prd", name: "aid-prd", content: "stale" }))
   const dispose = await createSetup({ aid: standardAid().aid, log: () => {} })(fake.ctx)
-  assert.equal(fake.skills.size, 21)
+  assert.equal(fake.skills.size, 22)
   const prd = fake.skills.get("aid-prd")
   assert.notEqual(prd.content, "stale")
   assert.doesNotMatch(prd.content, /^---/)
@@ -132,7 +132,7 @@ test("without aid on PATH: agents and skills still register, routing is off, gua
   const { aid } = fakeAid({})
   const { agents, skills, hooks, dispose } = await boot({ aid, logs })
   assert.equal(agents.size, 7)
-  assert.equal(skills.size, 21)
+  assert.equal(skills.size, 22)
   assert.ok(logs.some((line) => line.includes("aid is not on PATH")))
   await hooks.tool["execute.before"]({ tool: "shell", input: { command: "ls" }, sessionID: "s", agent: ORCHESTRATOR })
   await hooks.tool["execute.before"]({ tool: "shell", input: { command: "ls" }, sessionID: "s", agent: ORCHESTRATOR })
