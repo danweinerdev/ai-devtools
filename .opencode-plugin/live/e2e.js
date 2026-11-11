@@ -13,7 +13,7 @@
 // this tool's server and probe sessions are cleaned up. Server output is never
 // echoed. This makes real model calls and can incur provider costs.
 //
-//   node .opencode-plugin/live/e2e.js [--config PATH] [--keep] [--opencode PATH] [--agents all|ID,ID,...] [--timeout SECONDS]
+//   node .opencode-plugin/live/e2e.js [--config PATH] [--keep] [--opencode PATH] [--agents all|ID,ID,...] [--timeout SECONDS] [--help]
 //   (or AID_E2E_CONFIG=PATH, AID_E2E_TIMEOUT=SECONDS; the default config is the
 //   aid.json aid resolves, as the plugin does; the default timeout is 300s/row)
 //
@@ -46,7 +46,7 @@ const DEFAULT_ROW_TIMEOUT_S = 300
 const LOG_TAIL_LINES = 20
 const HTTP_TIMEOUT_MS = 10_000
 const MAX_API_BODY = 1024 * 1024
-const USAGE = "Usage: node .opencode-plugin/live/e2e.js [--config PATH] [--keep] [--opencode PATH] [--agents all|ID,ID,...] [--timeout SECONDS]  (or AID_E2E_CONFIG=PATH, AID_E2E_TIMEOUT=SECONDS; default: the aid.json aid resolves, as the plugin does, and 300s per row)"
+const USAGE = "Usage: node .opencode-plugin/live/e2e.js [--config PATH] [--agents all|ID,ID,...] [--keep] [--timeout SECONDS] [--opencode PATH] [--help]  (or AID_E2E_CONFIG=PATH, AID_E2E_TIMEOUT=SECONDS; default: the aid.json aid resolves, as the plugin does, and 300s per row)"
 const timer = (ms, callback) => { const value = setTimeout(callback, ms); value.unref?.(); return value }
 const stableError = (code) => { const error = new Error(code); error.code = code; return error }
 const unwrap = (value) => value && typeof value === "object" && "data" in value ? value.data : value
@@ -69,15 +69,16 @@ function seconds(value, source) {
 }
 
 export function parseArgs(argv, env = process.env) {
-  const options = { keep: false, opencode: "opencode", agents: "all", config: env.AID_E2E_CONFIG || undefined,
+  const options = { help: false, keep: false, opencode: "opencode", agents: "all", config: env.AID_E2E_CONFIG || undefined,
     timeoutMs: env.AID_E2E_TIMEOUT ? seconds(env.AID_E2E_TIMEOUT, "AID_E2E_TIMEOUT") : DEFAULT_ROW_TIMEOUT_S * 1000 }
   const seen = new Set()
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]
     if (!/^--[a-z-]+$/.test(token)) throw new Error(`Malformed option: ${JSON.stringify(token)}`)
-    if (!["--keep", "--opencode", "--agents", "--config", "--timeout"].includes(token)) throw new Error(`Unknown option: ${token}`)
+    if (!["--help", "--keep", "--opencode", "--agents", "--config", "--timeout"].includes(token)) throw new Error(`Unknown option: ${token}`)
     if (seen.has(token)) throw new Error(`Duplicate option: ${token}`)
     seen.add(token)
+    if (token === "--help") { options.help = true; continue }
     if (token === "--keep") { options.keep = true; continue }
     const value = argv[++i]
     if (!value || !value.trim() || value.startsWith("-")) throw new Error(`Missing value for ${token}`)
@@ -985,6 +986,7 @@ async function main() {
   let options
   try { options = parseArgs(process.argv.slice(2)) }
   catch (error) { console.error(`${error.message}\n${USAGE}`); process.exitCode = 2; return }
+  if (options.help) { console.log(USAGE); return }
   process.exitCode = await run(options)
 }
 

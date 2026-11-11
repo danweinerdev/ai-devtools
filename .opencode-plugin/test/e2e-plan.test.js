@@ -85,6 +85,13 @@ test("default config: the aid.json aid resolves, or a clear skip", async () => {
   assert.equal((await defaultConfig(fake({ stdout: "not json" }))).skip, "AID_CONFIG_UNREADABLE")
 })
 
+test("--help asks for usage instead of running", () => {
+  assert.equal(parseArgs(["--help"], {}).help, true)
+  assert.equal(parseArgs([], {}).help, false)
+  // --help short-circuits the rest of the line.
+  assert.equal(parseArgs(["--help", "--keep"], {}).help, true)
+})
+
 test("options: --timeout and AID_E2E_TIMEOUT set the per-row deadline (default 300s)", () => {
   assert.equal(parseArgs([], {}).timeoutMs, 300_000)
   assert.equal(parseArgs([], { AID_E2E_TIMEOUT: "90" }).timeoutMs, 90_000)

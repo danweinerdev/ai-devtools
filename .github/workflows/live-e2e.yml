@@ -1,0 +1,140 @@
+# The live OpenCode 2 suite (.opencode-plugin/live/e2e.js) on demand. It loads
+# this checkout into a real OpenCode 2 server and makes real model calls, so it
+# costs provider money and never runs in the pull-request CI (make check).
+# A run is manual, and the job stays skipped even when dispatched until the
+# repository variable AID_LIVE_E2E is "enabled": the secret alone can't start
+# it. To enable it, set AID_LIVE_E2E=enabled and the OPENCODE_API_KEY secret,
+# then dispatch with two models: model_a and model_b (provider/model, with an
+# optional #variant), plus an optional opencode_version and agents selection.
+name: live-e2e
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_a:
+        description: "Profile a's model: provider/model, with an optional #variant"
+        required: true
+        type: string
+      model_b:
+        description: "Profile b's model: provider/model, with an optional #variant"
+        required: true
+        type: string
+      opencode_version:
+        description: "The @opencode/cli version to install"
+        required: false
+        default: latest
+        type: string
+      agents:
+        description: "Rows to run: all, or comma-separated aid-* agents and guard"
+        required: false
+        default: all
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-e2e:
+    name: live e2e
+    if: vars.AID_LIVE_E2E == 'enabled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      # Fail fast and loudly: without the key every model call fails.
+      - name: Require OPENCODE_API_KEY
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          if [ -z "$OPENCODE_API_KEY" ]; then
+            echo "::error::OPENCODE_API_KEY is not set; add the secret before dispatching"
+            exit 1
+          fi
+
+      # go.mod pins the exact Go release.
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # aid drives the plugin's routing and guards; the suite skips without it.
+      - name: Build aid
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          go build -o "$RUNNER_TEMP/bin/aid" ./cmd/aid
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install OpenCode 2
+        env:
+          OPENCODE_VERSION: ${{ inputs.opencode_version }}
+        run: |
+          npm install --global "@opencode/cli@${OPENCODE_VERSION}"
+          opencode --version
+
+      # Two profiles on different models, so every worker's parent session can
+      # run on the other one and its routed model can't be mistaken for an
+      # inherited one. Throwaway, never the repository's config.
+      - name: Write the throwaway aid.json
+        env:
+          MODEL_A: ${{ inputs.model_a }}
+          MODEL_B: ${{ inputs.model_b }}
+          CONFIG: ${{ runner.temp }}/aid.json
+        run: |
+          if [ "$MODEL_A" = "$MODEL_B" ]; then
+            echo "::error::model_a and model_b must name different models"
+            exit 1
+          fi
+          python3 - "$CONFIG" <<'PY'
+          import json, os, sys
+          agents = {
+              "aid-orchestrator": "b",
+              "aid-craftsman": "a",
+              "aid-creator": "b",
+              "aid-designer": "a",
+              "aid-explorer": "b",
+              "aid-mechanic": "a",
+              "aid-oracle": "b",
+              "aid-sage": "a",
+          }
+          config = {
+              "profiles": {
+                  "a": {"model": os.environ["MODEL_A"]},
+                  "b": {"model": os.environ["MODEL_B"]},
+              },
+              "agents": agents,
+          }
+          with open(sys.argv[1], "w", encoding="utf-8") as handle:
+              json.dump(config, handle, indent=2)
+              handle.write("\n")
+          PY
+
+      - name: Run the live suite
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          CONFIG: ${{ runner.temp }}/aid.json
+          AGENTS: ${{ inputs.agents }}
+          # The suite keeps a failed run's scratch project under tmpdir(); point
+          # that at the runner's temp so the artifact step can find it.
+          TMPDIR: ${{ runner.temp }}
+        run: node .opencode-plugin/live/e2e.js --config "$CONFIG" --agents "$AGENTS"
+
+      # A failed or unverified run keeps its scratch project (config copy and
+      # server log); upload it for diagnosis. A passing run deletes it.
+      - name: Upload the scratch project
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aid-e2e-scratch
+          path: ${{ runner.temp }}/aid-e2e-*
+          if-no-files-found: ignore

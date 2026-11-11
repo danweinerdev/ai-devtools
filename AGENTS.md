@@ -29,7 +29,7 @@ A plugin of **skills** (`skills/aid-*/SKILL.md`) and **agents** (`agents/aid-*.m
 ## Testing the OpenCode plugin
 
 - **Offline:** `make test-opencode` (part of `make check`, and CI) runs the plugin's Node tests against a fake OpenCode context.
-- **Live:** `make test-opencode-e2e` loads this checkout into a real OpenCode 2 server and makes real model calls, so it runs locally only and never in CI. Run it only when the user asks. It proves the `aid.json` the plugin would use; see `.opencode-plugin/live/README.md`.
+- **Live:** `make test-opencode-e2e` loads this checkout into a real OpenCode 2 server and makes real model calls, so it never runs in `make check` or the pull-request CI. It runs locally, or through the manual `.github/workflows/live-e2e.yml`, whose job is skipped unless the repository variable `AID_LIVE_E2E` is `enabled`. Run it only when the user asks. It proves the `aid.json` the plugin would use; see `.opencode-plugin/live/README.md`.
 - **Stop code-graph first.** While a `code-graph-mcp --serve` daemon is indexing this checkout, OpenCode can't finish activating a plugin loaded from it: every load fails after 5 seconds with "Location plugins did not finish activating" (HTTP 503 from the live suite). Copies, clones, and this checkout with the daemon stopped all load immediately. Before loading the plugin from this checkout or running the live suite, stop the daemon whose working directory is this repository; code-graph starts it again on its next use. Installed copies are unaffected, because no daemon watches them.
 
 ## Versioning

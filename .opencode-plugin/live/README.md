@@ -1,6 +1,6 @@
 # OpenCode 2 live suite
 
-`make test-opencode-e2e` proves, against a real OpenCode 2 server and real models, that the plugin does what the offline tests assume. It makes real model calls and can incur provider costs, so it runs **locally only**: never in `make check` or CI.
+`make test-opencode-e2e` proves, against a real OpenCode 2 server and real models, that the plugin does what the offline tests assume. It makes real model calls and can incur provider costs, so it never runs in `make check` or the pull-request CI. It runs locally, or through a manual, disabled-by-default workflow (see [In CI](#in-ci)).
 
 ## What it checks
 
@@ -41,6 +41,10 @@ The suite's server is isolated so it can only test this checkout: the scratch pr
 Without a config, OpenCode 2, aid or git, it prints `SKIPPED: <reason> (<fix>)` and exits 2 without starting anything.
 
 Exit codes: **0** all pass, **1** any failure, **2** unverified, skipped, could not run, or interrupted.
+
+## In CI
+
+`.github/workflows/live-e2e.yml` runs the suite by hand. It needs the repository variable `AID_LIVE_E2E=enabled` and the `OPENCODE_API_KEY` secret; without the variable its job is skipped, even when dispatched. Dispatch it with two models, `model_a` and `model_b` (`provider/model` with an optional `#variant`), and optionally an `opencode_version` (default `latest`) and the `agents` rows to run (default `all`). It costs real model calls, about three per mapped subagent, and a pull request from a fork never gets the secret.
 
 ## Cleanup
 
