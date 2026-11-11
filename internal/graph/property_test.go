@@ -103,7 +103,10 @@ func TestPropertyRandomOperations(t *testing.T) {
 			switch r.Intn(8) {
 			case 0:
 				name = "claim " + id
-				op = func() error { _, err := g.Claim(id, holder, time.Duration(1+r.Intn(60))*time.Minute, at); return err }
+				op = func() error {
+					_, err := g.Claim(id, holder, "", time.Duration(1+r.Intn(60))*time.Minute, at)
+					return err
+				}
 			case 1:
 				name = "release " + id
 				op = func() error { _, err := g.Release(id, holder, at); return err }
@@ -169,7 +172,7 @@ func TestPropertyOperationsSucceedSometimes(t *testing.T) {
 				}
 				g.Tasks = cloneTasks(c)
 			}
-			_, err := g.Claim(x.ID, "h1", time.Hour, now)
+			_, err := g.Claim(x.ID, "h1", "", time.Hour, now)
 			try("claim", err)
 			_, err = g.Release(x.ID, x.State.Claim.Holder, now)
 			try("release", err)

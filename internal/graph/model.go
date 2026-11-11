@@ -32,9 +32,9 @@ type Graph struct {
 }
 
 // Task keeps what the author writes at the top level and what the tool owns
-// inside State, so an edit to one can never clobber the other. History is
-// tool-owned too, but sits outside State because a status change replaces
-// State whole.
+// inside State, so an edit to one can never clobber the other. History and
+// Session are tool-owned too, but sit outside State because a status change
+// replaces State whole.
 type Task struct {
 	ID        string   `json:"id"`
 	Title     string   `json:"title"`
@@ -43,6 +43,10 @@ type Task struct {
 	Done      DoneWhen `json:"done"`
 	State     State    `json:"state"`
 	History   []Change `json:"history,omitempty"`
+	// Session is the harness session the task's builder ran in, set by
+	// claim-task --session. It points at the builder so it can be continued;
+	// it isn't an identity, and no command checks it.
+	Session string `json:"session,omitempty"`
 }
 
 // Change records one weakening of a task's definition of done: when, by

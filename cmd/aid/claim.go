@@ -16,13 +16,15 @@ func init() { commands = append(commands, claimCmd) }
 const DefaultLease = 2 * time.Hour
 
 func claimCmd(a *app) *cobra.Command {
-	var holder string
+	var holder, session string
 	var lease time.Duration
 	cmd := &cobra.Command{
 		Use:   "claim-task <id>",
 		Short: "Mark a ready task in-progress, held by --holder for --lease",
 		Long: "Mark a ready task in-progress, held by --holder until the lease lapses. One holder at a time; " +
-			"a lapsed lease releases itself, and the same holder claiming again renews it.",
+			"a lapsed lease releases itself, and the same holder claiming again renews it. --session records the " +
+			"harness session the task's builder runs in, so a later command can continue that builder; nothing " +
+			"checks it, and a claim without it leaves the recorded session alone.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w, _, err := a.open()
@@ -37,7 +39,7 @@ func claimCmd(a *app) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if claimed, err = g.Claim(args[0], holder, lease, now); err != nil {
+				if claimed, err = g.Claim(args[0], holder, session, lease, now); err != nil {
 					return err
 				}
 				return saveGraph(tx, g)
@@ -51,5 +53,6 @@ func claimCmd(a *app) *cobra.Command {
 	}
 	holderFlag(cmd, &holder, "who is doing it, e.g. the role")
 	cmd.Flags().DurationVar(&lease, "lease", DefaultLease, "how long the claim lasts")
+	cmd.Flags().StringVar(&session, "session", "", "the harness session the builder runs in, recorded on the task")
 	return cmd
 }

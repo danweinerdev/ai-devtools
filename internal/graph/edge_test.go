@@ -289,7 +289,7 @@ func TestClaimAgreesWithReady(t *testing.T) {
 			if slices.ContainsFunc(g.Ready(now), func(x Task) bool { return x.ID == "b" }) {
 				t.Fatal("b is ready")
 			}
-			_, err := g.Claim("b", "h", time.Hour, now)
+			_, err := g.Claim("b", "h", "", time.Hour, now)
 			wantEditErr(t, err, c.want)
 		})
 	}

@@ -9,7 +9,7 @@ user-invocable: false
 **Loop:** make
 
 1. **Pick.** Take tasks from the ready frontier (`aid ready`). Tasks whose footprints don't overlap can run in parallel; overlapping ones run in sequence.
-2. **Claim.** `aid claim-task <id> --holder <role>`, so no two builders take the same task (aid-graph).
+2. **Claim.** `aid claim-task <id> --holder <role>`, so no two builders take the same task (aid-graph). Once the harness returns the builder's session ID, claim again with `--holder <role> --session <id>`: that records the session on the task, where it survives compaction, and renews the lease.
 3. **Route** to the cheapest role that can succeed:
 
 | Role | Use for | Not for |
@@ -35,7 +35,7 @@ A subagent knows only its brief. Include:
 - the report shape, including `## PRD changes proposed` and anything noticed that isn't part of the task;
 - for a task that depends on another, the predecessor's validated results (findings, changed files, commit IDs), never its raw report.
 
-Prefer continuing a builder that already holds the task's context (pass its session id) over starting a new one, and continue a session only as the role it was first dispatched as. Tell it what changed, and start fresh when old context would mislead or bloat it (aid-orchestrate).
+Prefer continuing a builder that already holds the task's context (pass its session id) over starting a new one, and continue a session only as the role it was first dispatched as. Tell it what changed, and start fresh when old context would mislead or bloat it (aid-orchestrate). When resending a task (corrections, or review findings on a done task), take its builder's session from the task (`aid show <id>`) rather than from memory, and start fresh when the harness can't resume it.
 
 Before redispatching a failed, cancelled, or timed-out builder, confirm it has stopped and inspect what it already changed. Never run a replacement while the original may still be writing.
 
