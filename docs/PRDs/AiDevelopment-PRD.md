@@ -188,6 +188,8 @@ Checking a PRD against the code splits along that line: **finding is research, j
 
 Every specialist report includes a `## PRD changes proposed` section, which is how R2 ("whoever finds an inconsistency proposes the fix") works across the subagent boundary.
 
+A specialist stops rather than guessing when it needs a decision or information it can't obtain, and reports the question, what's done so far, and anything still running, in its own report's vocabulary (`blocked`, or a question under `## Noticed` or the designer's `## Open questions for the user`). A task outside its role is declined with a brief reason instead of partial work. `aid-oracle` judges a design against the codebase's established principles and patterns first: consistency outranks local simplicity, simplicity is preferred only among options that respect them, and it says when a proposed simplification would break one.
+
 ### Guardrails (Claude Code)
 
 Always on. The guardrails make the roster the only way work gets delegated.
