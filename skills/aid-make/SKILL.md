@@ -54,4 +54,4 @@ Each piece of Make work keeps its state in `.aid/<name>/`, named after the PRD i
 
 ## Finishing
 
-When review is clean, aid-learn-history resolves every open state item with the user, and the tool's finish check must pass. Then aid-make-rebuild rewrites the history and drops `.aid/`. Before calling the work done, check that the governing PRD still describes reality. If the build changed the picture, propose the fragments (aid-prd R2).
+When review is clean, aid-learn-history resolves every open state item with the user, and the tool's finish check must pass. Then aid-make-rebuild rewrites the history and drops `.aid/`. Before calling the work done, check that the governing PRD still describes reality. If the build changed the picture, propose the fragments (aid-prd R2). At the final completion gate that check is aid-sage's, in its own context (aid-make-review), in addition to the lenses.

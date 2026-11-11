@@ -144,7 +144,8 @@ func deny(msg string) Decision {
 // --- generic: no generic delegation, no orchestrator subagent -------------
 
 const roles = "aid-mechanic for well-specified building, aid-oracle for high-risk " +
-	"work or deep review, aid-explorer for research, aid-designer for " +
+	"work or deep review, aid-sage for architecture that crosses projects, " +
+	"aid-explorer for research, aid-designer for " +
 	"visual/UX, aid-creator for first-pass creative work, aid-craftsman " +
 	"for refining a working first pass"
 

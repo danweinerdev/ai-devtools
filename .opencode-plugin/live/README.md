@@ -6,7 +6,7 @@
 
 | Row | Passes when |
 |---|---|
-| `registration` | exactly one `ai-development` plugin is active and it was loaded from this checkout's directory (otherwise `PLUGIN_NOT_FROM_CHECKOUT`), and it lists all seven `aid-*` agents with the right modes, and every `aid-*` skill |
+| `registration` | exactly one `ai-development` plugin is active and it was loaded from this checkout's directory (otherwise `PLUGIN_NOT_FROM_CHECKOUT`), and it lists all eight `aid-*` agents with the right modes, and every `aid-*` skill |
 | each mapped `aid-*` subagent | its registered model, its child session and every assistant message in it agree on the model its `aid.json` profile names, through one native subagent call with no model override, dispatched from a parent session running on a different model from the config (printed as `parent=`) |
 | `aid-orchestrator` (if mapped) | its own session, created with no model, runs its turn on the orchestrator's profile model, variant included |
 | `guard` | a dispatch carrying a planted secret is denied by `aid guard`: the subagent call errors and no child session exists |

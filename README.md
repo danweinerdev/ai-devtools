@@ -30,6 +30,7 @@ No skill is a user command. The model picks them up from what's being discussed,
 | `aid-explorer` | haiku | Read-only research with evidence |
 | `aid-mechanic` | sonnet | Well-specified technical building |
 | `aid-oracle` | opus | High-risk implementation and independent review |
+| `aid-sage` | fable | Cross-project architecture, the hardest problems, and the final-gate PRD review |
 | `aid-designer` | opus | Visual and UX direction |
 | `aid-creator` | sonnet | First-pass creative work |
 | `aid-craftsman` | opus | Complex refinement |
