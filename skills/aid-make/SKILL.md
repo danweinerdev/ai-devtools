@@ -1,6 +1,6 @@
 ---
 name: aid-make
-description: The Make loop, which turns what a PRD describes into verified, reviewed changes. It opens with a breakdown into a task graph, cycles Delegate, Build, Verify over the ready tasks, reviews at the completion gates, and closes with a rebuild of the history. Use it when asked to build, implement, or fix something a PRD describes, to resume Make work in progress, or to dispatch implementation to the aid-* specialist roster.
+description: The Make loop, which turns what a PRD describes into verified, reviewed changes. It opens with a breakdown into a task graph, using Checks to settle the project's test and lint commands; cycles Delegate, Build, Verify over the ready tasks, using Checks again when a command isn't settled; reviews at the completion gates; and closes with a rebuild of the history. Use it when asked to build, implement, or fix something a PRD describes, to resume Make work in progress, or to dispatch implementation to the aid-* specialist roster.
 user-invocable: false
 ---
 
@@ -12,11 +12,14 @@ Make turns decided work into verified, reviewed changes. The orchestrator owns j
 
 ```mermaid
 flowchart LR
-  Bd[Breakdown<br/>gap · strategy · plan] --> G[(task graph)]
+  Bd[Breakdown<br/>gap · strategy · plan] --> C[Checks<br/>evidence · commands · mapping]
+  C --> G[(task graph)]
   G -->|ready tasks| D[Delegate]
   D --> B[Build]
   B --> V[Verify]
   V -->|fails| B
+  V -->|unsettled command| C
+  C -->|settled| V
   V -->|done| G
   G -->|feature complete| R[Review]
   R -->|findings| G
@@ -34,7 +37,7 @@ flowchart LR
 | Stage | Skill | Works from | Result |
 |---|---|---|---|
 | Breakdown | aid-make-breakdown | a PRD with no open question gating this piece | the reviewed breakdown text, then the task graph built from it |
-| Checks | aid-make-checks | a task whose checks aren't settled, and the repository's evidence | the project's own test and lint commands, and where a new test goes |
+| Checks | aid-make-checks | a plan or verify step with an unsettled command, and the repository's evidence | the project's own test and lint commands, and where a new test goes |
 | Delegate | aid-make-delegate | the graph's ready frontier | each ready task claimed and routed with a complete brief |
 | Build | aid-make-build | a brief | the change, inside the brief's scope |
 | Verify | aid-make-verify | the change and the task's checks | the task's checks passing, output captured; the task `done` |

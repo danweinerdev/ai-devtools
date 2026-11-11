@@ -45,7 +45,7 @@ Reviewer value comes from **intent isolation**: each lens gets only its inputs, 
 
 Start with `aid finish`'s list of tasks whose definition of done was weakened, if the work is at that gate, or `aid show` on the tasks reviewed: each weakening, with its reason, is put to the user alongside the lens findings.
 
-Findings that two or more lenses agree on are strong. Findings only one lens raised are listed separately, and fresh-eyes-only findings get particular attention. Every finding gets an outcome:
+Findings that two or more lenses agree on are strong. Findings only one lens raised are listed separately, and fresh-eyes-only findings get particular attention. When a finding's claims are in doubt, the orchestrator can dispatch a blind aid-explorer to check them against the code. It gets the finding's file:line claims only, not the lens's reasoning, so it can't inherit the lens's conclusion. Every finding gets an outcome:
 
 - **fixed:** a new or updated task in the graph, built and verified;
 - **rejected,** with the reason;

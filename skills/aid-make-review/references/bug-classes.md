@@ -52,10 +52,10 @@ Grade by impact, not by confidence or how hard the bug was to find.
 
 ### Test quality
 
-- **Looks for:** tests that cannot fail or prove nothing — no assertion; a fixed sleep instead of waiting on a condition; a skip or expected-failure marker; logic in the test body; more mocks or verifications than assertions; a mock asserted against its own configured return; presence-only assertions where a value is available. It also hunts **weakened proof**: a test deleted, skipped, or loosened; an assertion removed or rewritten to match the output; a check narrowed until it no longer reaches the code it names.
+- **Looks for:** tests that cannot fail or prove nothing — no assertion; a fixed sleep instead of waiting on a condition; a skip or expected-failure marker; logic in the test body; more mocks or verifications than assertions; a mock asserted against its own configured return; presence-only assertions where a value is available. It also hunts **weakened proof**: a test deleted, skipped, or loosened; an assertion removed or rewritten to match the output; a check narrowed until it no longer reaches the code it names; a focused test (`.only`, `fit`, `fdescribe`) that silently narrows the suite.
 - **Leaves to:** logic, edge cases, error handling, concurrency, resources, security, and interface contracts for defects in the production code itself. This class judges whether the test proves its behaviour, not whether the behaviour is right.
 
-Common skip and expected-failure markers: `it.skip`, `xit(`, `@Disabled`, `pytest.mark.skip`, `xfail`, `#[ignore]`, `[Ignore]`, `t.Skip`.
+Common skip and expected-failure markers: `it.skip`, `test.skip`, `describe.skip`, `xit(`, `xdescribe`, `@Disabled`, `pytest.mark.skip`, `xfail`, `#[ignore]`, `t.Skip`, `@unittest.skip`, `@Ignore` (JUnit 4), `[Ignore]` (NUnit/MSTest), `[Fact(Skip = …)]` (xUnit). Focus markers that silently narrow a suite are weakened proof too: `.only`, `fit`, `fdescribe`.
 
 ## Evidence rules
 

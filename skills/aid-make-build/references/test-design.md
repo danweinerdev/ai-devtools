@@ -41,16 +41,17 @@ A test with several unrelated assertions fails for whichever reason comes first 
 
 ```python
 # bad: a vague name and two unrelated concepts
-def test_add():
+def test_everything():
     assert add(1, 2) == 3
-    assert add(0, 0) == 0
+    assert divide(6, 2) == 3
 
 # good: one concept per test, named for the behaviour
 def test_add_sums_two_positive_numbers():
     assert add(1, 2) == 3
 
-def test_add_treats_zero_as_the_identity():
-    assert add(0, 0) == 0
+def test_add_returns_the_same_number_when_adding_zero():
+    for x in [0, 1, 7, -3]:
+        assert add(x, 0) == x
 
 # good: multiple assertions, one concept
 def test_invoice_total_includes_tax():
@@ -189,16 +190,16 @@ with pytest.raises(ValueError):
 
 ### Constants
 
-A constant asserted against itself fails only if someone renames it, which is a refactor.
+A constant asserted against itself pins configuration: it fails when the value changes, not when the behaviour breaks. That is a test of the configuration, not the behaviour.
 
 ```python
 # bad
 assert MAX_RETRIES == 3
 
-# good: prove the behaviour the constant configures
+# good: the contract is one initial attempt plus MAX_RETRIES retries
 gateway = AlwaysFails()
 load_with_retry(gateway)
-assert gateway.calls == MAX_RETRIES
+assert gateway.attempts == 1 + MAX_RETRIES
 ```
 
 ### Duplicates of a sibling's test
@@ -213,12 +214,12 @@ def test_delete_missing_user_is_ignored():
 def test_delete_missing_group_is_ignored():
     assert delete_group(store, "nobody") is None
 
-# good: one guard test, plus the sibling whose outcome differs
+# good: one guard test covers the shared behaviour; delete the duplicate
 def test_delete_missing_user_is_ignored():
     assert delete_user(store, "nobody") is None
 
-def test_delete_missing_group_reports_a_missing_reference():
-    assert delete_group(store, "nobody") == MissingReference("group")
+# delete_group's identical guard test is deleted rather than given a new
+# expectation; if it had a different observable outcome, it would get its own test
 ```
 
 ## Coverage and timing are not targets
@@ -234,7 +235,7 @@ if line_coverage < 90:
 # before the change that implements it
 ```
 
-**No timing targets.** Don't assert how fast code runs, and don't set a target duration for a test or the suite. A condition wait's timeout is a failure bound, not a performance target. When the PRD asks for performance, give it a benchmark or a separate check rather than a stopwatch inside a behaviour test.
+**No timing targets.** A test doesn't assert how fast code runs. A condition wait's timeout is a failure bound, and performance the PRD asks for gets its own benchmark check, not a stopwatch inside a behaviour test.
 
 ```python
 # bad: a stopwatch in a behaviour test

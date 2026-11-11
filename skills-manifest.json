@@ -41,7 +41,7 @@
     {
       "name": "aid-make",
       "loop": "make",
-      "description": "The Make loop, which turns what a PRD describes into verified, reviewed changes. It opens with a breakdown into a task graph, cycles Delegate, Build, Verify over the ready tasks, reviews at the completion gates, and closes with a rebuild of the history. Use it when asked to build, implement, or fix something a PRD describes, to resume Make work in progress, or to dispatch implementation to the aid-* specialist roster.",
+      "description": "The Make loop, which turns what a PRD describes into verified, reviewed changes. It opens with a breakdown into a task graph, using Checks to settle the project's test and lint commands; cycles Delegate, Build, Verify over the ready tasks, using Checks again when a command isn't settled; reviews at the completion gates; and closes with a rebuild of the history. Use it when asked to build, implement, or fix something a PRD describes, to resume Make work in progress, or to dispatch implementation to the aid-* specialist roster.",
       "path": "skills/aid-make/SKILL.md"
     },
     {
