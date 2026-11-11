@@ -20,7 +20,7 @@ Line up the user's stated ideas, the PRD, the references, and the code from the 
 
 Be direct. Rank by what blocks the most downstream work.
 
-For a high-risk technical judgement, get a second opinion from aid-oracle. For UX or visual direction, use aid-designer. Pass them the question and the evidence, not your conclusion.
+For a high-risk technical judgement, get a second opinion from aid-oracle, or from aid-sage when the question crosses more than one project. For UX or visual direction, use aid-designer. Pass them the question and the evidence, not your conclusion.
 
 The ranked list becomes the question queue for aid-think-clarify.
 
