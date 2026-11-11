@@ -97,16 +97,13 @@ jobs:
           fi
           python3 - "$CONFIG" <<'PY'
           import json, os, sys
-          agents = {
-              "aid-orchestrator": "b",
-              "aid-craftsman": "a",
-              "aid-creator": "b",
-              "aid-designer": "a",
-              "aid-explorer": "b",
-              "aid-mechanic": "a",
-              "aid-oracle": "b",
-              "aid-sage": "a",
-          }
+          # Every agent in the generated registry, alternating between the two
+          # profiles, so a new agent is covered without editing this file.
+          with open("agents-manifest.json", encoding="utf-8") as handle:
+              names = [agent["name"] for agent in json.load(handle)["agents"]]
+          agents = {"aid-orchestrator": "b"}
+          for i, name in enumerate(sorted(names)):
+              agents[name] = "ab"[i % 2]
           config = {
               "profiles": {
                   "a": {"model": os.environ["MODEL_A"]},
@@ -133,7 +130,7 @@ jobs:
       # server log); upload it for diagnosis. A passing run deletes it.
       - name: Upload the scratch project
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aid-e2e-scratch
           path: ${{ runner.temp }}/aid-e2e-*
