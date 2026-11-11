@@ -65,9 +65,10 @@
         "map-structure",
         "compare-sources",
         "gather-context",
-        "summarise"
+        "summarise",
+        "prd-to-code-map"
       ],
-      "description": "Read-only research specialist. It answers a narrow question by reading code, branches, PRDs, plans, reference docs, and the web, and returns evidence-backed findings, not file dumps. Use it for \"where is X\", \"what do these branches and plans say about Y\", comparing options, and gathering context before a Think or Make step.",
+      "description": "Read-only research specialist. It answers a narrow question by reading code, branches, PRDs, plans, reference docs, and the web, and returns evidence-backed findings, not file dumps. It also produces the PRD-to-code map (each described behaviour mapped to the code that implements it, or a search trail) that curation, the grounding lens, and completion gates judge from. Use it for \"where is X\", \"what do these branches and plans say about Y\", comparing options, and gathering context before a Think or Make step.",
       "path": "agents/aid-explorer.md"
     },
     {
@@ -98,12 +99,10 @@
         "architecture",
         "deep-debugging",
         "security-analysis",
-        "review-prd-compliance",
-        "review-quality",
-        "review-fresh-eyes",
-        "review-prd-challenge"
+        "isolated-review",
+        "prd-challenge"
       ],
-      "description": "Senior engineer for high-risk work and independent review. It implements novel or dangerous changes (concurrency, security, data migration, core algorithms, irreversible operations) and reviews work through a single isolated lens (PRD compliance, quality, fresh eyes, or one of the adversarial PRD challenge lenses). Use it when being wrong is expensive, or for any review that has to be independent.",
+      "description": "Senior engineer for high-risk work and independent review. It implements novel or dangerous changes (concurrency, security, data migration, core algorithms, irreversible operations) and reviews work through the single isolated lens its brief names (PRD compliance, goal drift, quality, fresh eyes, or one of the adversarial PRD challenge lenses). Use it when being wrong is expensive, or for any review that has to be independent.",
       "path": "agents/aid-oracle.md"
     }
   ]
