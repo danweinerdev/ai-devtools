@@ -160,7 +160,9 @@ One source, three harnesses, and no prose transformation.
 
 ### Orchestration
 
-The orchestration rules (the PRD gate, briefing, synthesis, honest reporting, routing to the roster) live in one place: the `aid-orchestrate` skill. Each harness turns its root into the orchestrator its own way.
+The orchestration rules (the PRD gate, briefing, synthesis, honest reporting, routing to the roster, and continuing a specialist rather than restarting it) live in one place: the `aid-orchestrate` skill. Each harness turns its root into the orchestrator its own way.
+
+The orchestrator prefers continuing a specialist that already holds the relevant context, as the role it was first dispatched as, and starts fresh when old context would mislead or bloat it. A dependent task gets its predecessor's validated results (findings, changed files, commit IDs), not the raw report. Before replacing a failed, cancelled, or timed-out writer, the orchestrator confirms it stopped and inspects what it changed. It performs only the side effects the user asked for, checks an uncertain action before retrying it, and never repeats one that completed. When a specialist stops for a question, the orchestrator answers from its own context or asks the user and replies in the same session; a specialist that declines a task as outside its role is rerouted or clarified, never resent unchanged.
 
 | Harness | The orchestrator | How it gets the rules |
 |---|---|---|
