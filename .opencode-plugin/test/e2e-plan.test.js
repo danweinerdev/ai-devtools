@@ -17,7 +17,7 @@ test("rows: mapped subagents, a mapped orchestrator, and the guard; unmapped age
   assert.deepEqual(rows.map((r) => [r.agent, r.mode]), [
     ["aid-orchestrator", "primary"], ["aid-explorer", "subagent"], ["aid-oracle", "subagent"], ["guard", "guard"],
   ])
-  assert.deepEqual(skipped, ["aid-craftsman", "aid-creator", "aid-designer", "aid-mechanic", "aid-sage"])
+  assert.deepEqual(skipped, ["aid-auditor", "aid-craftsman", "aid-creator", "aid-designer", "aid-inspector", "aid-mechanic", "aid-navigator", "aid-sage", "aid-skeptic"])
   assert.equal(rows.find((r) => r.agent === "aid-oracle").variant, "high")
 })
 

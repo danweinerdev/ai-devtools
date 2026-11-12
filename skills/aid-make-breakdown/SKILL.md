@@ -35,6 +35,8 @@ In the chosen strategy's shape. Each step is a task with:
 
 The plan also carries one **criterion → check table**: every acceptance criterion in the PRD sections being built, listed against the task check that proves it. A criterion may map to more than one check; a criterion with no check is recorded as an open state item now (aid-make-checks, aid-state), so the work can't finish while it's unproven.
 
+Every feature the plan builds ends in a `review-gate` task (aid-graph). It needs all of the feature's tasks, its footprint is theirs, its result is "the review lenses ran and every finding has an outcome", and its checks are the feature's task checks, so completing it re-runs that feature's batch. The orchestrator holds it and runs the review (aid-make-review). A finding that's fixed becomes a new task the gate needs; a deferred finding becomes a state item. In map-reduce the gate follows the assembly stage. In foundation-first, each feature built on the foundation gets one, and the first of them also reviews the foundation. The plan's last gate is the PR gate, so a PR with one feature is reviewed once.
+
 A step with no observable result isn't a step. New seams and component responsibilities, and for new systems the layout itself, go to the PRD's `## Layout` as fragments (aid-prd R1).
 
 ## Review, then build the graph

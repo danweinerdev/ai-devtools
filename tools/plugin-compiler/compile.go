@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	loops  = []string{"think", "make", "learn", "all"}
-	models = []string{"haiku", "sonnet", "opus", "fable", "inherit"}
-	loopRe = regexp.MustCompile(`(?m)^\*\*Loop:\*\* (\w+)`)
+	loops   = []string{"think", "make", "learn", "all"}
+	models  = []string{"haiku", "sonnet", "opus", "fable", "inherit"}
+	efforts = []string{"low", "medium", "high", "xhigh", "max"}
+	loopRe  = regexp.MustCompile(`(?m)^\*\*Loop:\*\* (\w+)`)
 )
 
 const compiler = "tools/plugin-compiler"
@@ -174,6 +175,9 @@ func (p *project) loadAgents(root string, errs *[]string) {
 		}
 		if !slices.Contains(models, model) {
 			*errs = append(*errs, fmt.Sprintf("%s: model must be one of %s", file, strings.Join(models, "|")))
+		}
+		if v, ok := data["effort"]; ok && !slices.Contains(efforts, str(v)) {
+			*errs = append(*errs, fmt.Sprintf("%s: effort must be one of %s", file, strings.Join(efforts, "|")))
 		}
 		if _, ok := data["tier"]; ok {
 			*errs = append(*errs, file+`: no "tier", agents declare a Claude model`)

@@ -20,8 +20,9 @@
         ]
       },
       "state": {
-        "status": "todo"
-      }
+        "status": "done"
+      },
+      "session": "ses_e30fe9681ffeS0g93nNgwLMoJb"
     },
     {
       "id": "compiler-effort",
@@ -37,8 +38,9 @@
         ]
       },
       "state": {
-        "status": "todo"
-      }
+        "status": "done"
+      },
+      "session": "ses_e30fe7d50ffeHSJJvKxx7ZMo0E"
     },
     {
       "id": "guard-roster",
@@ -55,8 +57,9 @@
         ]
       },
       "state": {
-        "status": "todo"
-      }
+        "status": "done"
+      },
+      "session": "ses_e30fe6220ffeuObyH8m3KLDwt4"
     },
     {
       "id": "skills-staffing",
@@ -82,7 +85,7 @@
         ]
       },
       "state": {
-        "status": "todo"
+        "status": "done"
       }
     },
     {
@@ -101,7 +104,7 @@
         ]
       },
       "state": {
-        "status": "todo"
+        "status": "done"
       }
     },
     {
@@ -126,7 +129,7 @@
         ]
       },
       "state": {
-        "status": "todo"
+        "status": "done"
       }
     },
     {

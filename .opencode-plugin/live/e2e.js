@@ -1,7 +1,7 @@
 // Live OpenCode 2 e2e suite for the ai-development plugin, ported from
 // opencode-model-router's live suite. It proves, against a real OpenCode 2
 // server and real models, that:
-//   - the plugin registers all eight aid-* agents (modes) and every aid-* skill;
+//   - the plugin registers all twelve aid-* agents (modes) and every aid-* skill;
 //   - each aid-* subagent the user's aid.json maps to a profile is registered
 //     with, and actually dispatched on, that profile's model (registry, child
 //     session and assistant messages must agree; an unsupported variant must
@@ -37,7 +37,7 @@ import { compareModels, distinctFromDefault, formatTiming, inspectSubagentCalls,
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const PLUGIN_ID = "ai-development"
 const ORCHESTRATOR = "aid-orchestrator"
-const SUBAGENTS = ["aid-craftsman", "aid-creator", "aid-designer", "aid-explorer", "aid-mechanic", "aid-oracle", "aid-sage"]
+const SUBAGENTS = ["aid-auditor", "aid-craftsman", "aid-creator", "aid-designer", "aid-explorer", "aid-inspector", "aid-mechanic", "aid-navigator", "aid-oracle", "aid-sage", "aid-skeptic"]
 const GUARD_ROW = "guard"
 const SENTINEL = "aid-e2e-sentinel"
 const SECRET = "AID-E2E-SECRET-4242"

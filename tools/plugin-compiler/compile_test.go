@@ -231,6 +231,43 @@ func TestValidationErrors(t *testing.T) {
 	}
 }
 
+func TestEffortValid(t *testing.T) {
+	for _, effort := range []string{"low", "medium", "high", "xhigh", "max"} {
+		t.Run(effort, func(t *testing.T) {
+			root := fixture(t)
+			write(t, root, "agents/aid-explorer.md", strings.Replace(explorerAgent, "model: haiku", "model: haiku\neffort: "+effort, 1))
+			if code, _, errOut := compile(root, false); code != 0 {
+				t.Fatalf("effort %s must be accepted:\n%s", effort, errOut)
+			}
+		})
+	}
+}
+
+func TestEffortAbsent(t *testing.T) {
+	root := fixture(t)
+	if code, _, errOut := compile(root, false); code != 0 {
+		t.Fatalf("effort is optional:\n%s", errOut)
+	}
+}
+
+func TestEffortInvalid(t *testing.T) {
+	cases := []struct{ name, value string }{
+		{"unknown value", "effort: extreme"},
+		{"non-string", "effort: true"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			root := fixture(t)
+			write(t, root, "agents/aid-explorer.md", strings.Replace(explorerAgent, "model: haiku", "model: haiku\n"+c.value, 1))
+			code, _, errOut := compile(root, false)
+			want := "agents/aid-explorer.md: effort must be one of low|medium|high|xhigh|max"
+			if code != 1 || !strings.Contains(errOut, want) {
+				t.Fatalf("want exit 1 with %q, got %d:\n%s", want, code, errOut)
+			}
+		})
+	}
+}
+
 func TestMissingOrchestrateSkill(t *testing.T) {
 	root := fixture(t)
 	if err := os.RemoveAll(filepath.Join(root, "skills", "aid-orchestrate")); err != nil {

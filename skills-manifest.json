@@ -77,7 +77,7 @@
     {
       "name": "aid-make-review",
       "loop": "make",
-      "description": "The Review stage of the Make loop, loaded by aid-make and not an entry point. Runs intent-isolated review lenses (PRD compliance, goal drift, quality, fresh eyes, plus project reviewer agents) at the completion gates, re-runs every task's checks as one batch, and gives every finding an outcome. At the final gate, aid-sage reviews in its own context whether the governing PRD still describes what was built. Use the timing rules to decide when a review is due.",
+      "description": "The Review stage of the Make loop, loaded by aid-make and not an entry point. Runs intent-isolated review lenses on their own read-only reviewers (aid-auditor for PRD compliance, aid-navigator for goal drift, aid-inspector for quality, aid-skeptic for fresh eyes, plus project reviewer agents) at the completion gates, re-runs every task's checks as one batch, and gives every finding an outcome. At the final gate, aid-sage reviews in its own context whether the governing PRD still describes what was built. Use the timing rules to decide when a review is due.",
       "path": "skills/aid-make-review/SKILL.md"
     },
     {

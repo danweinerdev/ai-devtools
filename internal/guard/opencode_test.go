@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -361,6 +362,39 @@ func TestPolicyPerHarness(t *testing.T) {
 	}
 	if !strings.Contains(Policy(Claude), "general-purpose") {
 		t.Error("Claude policy changed")
+	}
+}
+
+// Reviewers staff review apart from building: the roster carries all four, both
+// policies route to each, and the oracle's line builds only.
+func TestReviewersInRosterAndPolicies(t *testing.T) {
+	policies := map[Harness]string{"claude": claudePolicy, "opencode": openCodePolicy}
+	reviewers := []string{"aid-auditor", "aid-navigator", "aid-inspector", "aid-skeptic"}
+	for _, name := range reviewers {
+		if !slices.Contains(roster, name) {
+			t.Errorf("roster lacks %s", name)
+		}
+		for h, policy := range policies {
+			if !strings.Contains(policy, "- "+name+": ") {
+				t.Errorf("%s policy lacks %s", h, name)
+			}
+		}
+	}
+	for h, policy := range policies {
+		for _, line := range strings.Split(policy, "\n") {
+			if !strings.HasPrefix(line, "- aid-oracle:") {
+				continue
+			}
+			// The oracle builds and never reviews, so it takes no lens.
+			if !strings.Contains(line, "never reviews") {
+				t.Errorf("%s policy's aid-oracle line doesn't say it never reviews: %s", h, line)
+			}
+			for _, name := range reviewers {
+				if strings.Contains(line, name) {
+					t.Errorf("%s policy's aid-oracle line names %s: %s", h, name, line)
+				}
+			}
+		}
 	}
 }
 
