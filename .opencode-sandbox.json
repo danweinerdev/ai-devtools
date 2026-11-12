@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "image": "localhost/ai-development-sandbox:latest",
+  "build": {
+    "containerfile": "Containerfile.sandbox",
+    "context": "."
+  },
+  "workspace": ".",
+  "env": {
+    "pass": ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"],
+    "set": { "TZ": "UTC" }
+  },
+  "runtime_args": ["--pids-limit=4096"]
+}

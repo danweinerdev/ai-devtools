@@ -1,0 +1,71 @@
+# Containerfile.sandbox: the OpenCode2 sandbox image (podman-opencode2) with the
+# toolchain this repository's `make check` needs, so the gate runs offline in
+# the container:
+#
+#   Go 1.26.10        the version go.mod requires; GOTOOLCHAIN=local, so go
+#                     never downloads another toolchain
+#   module cache      this repo's modules plus staticcheck and actionlint,
+#                     pre-fetched at their pinned versions (Makefile, CI)
+#   make              for the Makefile targets
+#
+# Node 24 and Python 3 come from the base image. Built by bin/opencode-container
+# from .opencode-sandbox.json; the base image (opencode2:latest) must already be
+# built from podman-opencode2.
+
+ARG BASE_IMAGE=localhost/opencode2:latest
+ARG GO_IMAGE=docker.io/library/golang:1.26.10-bookworm
+
+FROM ${GO_IMAGE} AS go
+
+FROM ${BASE_IMAGE}
+
+# The launcher passes these to every build; the base image created the user.
+ARG USER_UID=1000
+ARG USER_GID=1000
+ARG USERNAME=dev
+ARG LOCAL_PROVIDERS_SHA256=absent
+
+USER root
+
+RUN dnf install -y --setopt=install_weak_deps=False make \
+    && dnf clean all
+
+COPY --from=go /usr/local/go /usr/local/go
+
+# GOPATH (and so the module and build caches) lives outside the home directory,
+# owned by the image user, so it is writable at runtime and isn't hidden by the
+# data volume. GOPROXY reads only the pre-fetched module cache, so the gate,
+# including `go run tool@version` for staticcheck and actionlint, works with no
+# network. A public-proxy fallback would break that: go probes module-path
+# prefixes the cache doesn't hold and would go to the network for them. To add
+# a dependency, run with GOPROXY=https://proxy.golang.org,direct.
+ENV GOPATH=/opt/go \
+    GOCACHE=/opt/go/cache \
+    GOTOOLCHAIN=local \
+    GOFLAGS=-modcacherw \
+    GOPROXY=file:///opt/go/pkg/mod/cache/download \
+    PATH=/usr/local/go/bin:/opt/go/bin:/opt/mcp/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Keep these versions in step with the Makefile's STATICCHECK and the CI
+# workflow's actionlint.
+ARG STATICCHECK_VERSION=v0.8.2
+ARG ACTIONLINT_VERSION=v1.7.12
+COPY go.mod go.sum /tmp/modules/
+RUN set -eux; \
+    mkdir -p "${GOPATH}"; \
+    cd /tmp/modules; \
+    export GOPROXY=https://proxy.golang.org,direct; \
+    go mod download; \
+    go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"; \
+    go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"; \
+    go version | grep -q 'go1.26.10 '; \
+    rm -rf /tmp/modules; \
+    chown -R "${USER_UID}:${USER_GID}" "${GOPATH}"
+
+# Packages added here must not widen the base image's setuid policy; the
+# sandbox's entrypoint refuses to start an image that does.
+RUN /usr/local/libexec/opencode-setuid-policy "$(cat /etc/opencode-nested-podman)"
+
+LABEL io.opencode.local-providers-sha256="${LOCAL_PROVIDERS_SHA256}"
+
+USER ${USERNAME}
