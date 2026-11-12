@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "i1",
+      "kind": "note",
+      "status": "open",
+      "text": "Prose-only criterion: risky-task aid-inspector (PRD › When to verify and review, item 3) has no mechanical check; judge at review-gate."
+    },
+    {
+      "id": "i2",
+      "kind": "note",
+      "status": "open",
+      "text": "Prose-only criterion: skipped lenses named with reasons in synthesis (item 5) has no mechanical check; judge at review-gate."
+    },
+    {
+      "id": "i3",
+      "kind": "question",
+      "status": "open",
+      "text": "Installed plugin v0.2.0 lacks the reviewer agents; how are they dispatched at review-gate (load checkout vs install)? Ask the user before the gate."
+    },
+    {
+      "id": "i4",
+      "kind": "follow-up",
+      "status": "open",
+      "text": "User-level routing configs (.opencode/aid.json, .claude/aid.json) don't map the four reviewers yet; unmapped they inherit the session model (OpenCode). Tell the user at close-out."
+    },
+    {
+      "id": "i5",
+      "kind": "follow-up",
+      "status": "open",
+      "text": "Derive hard-coded rosters (.opencode-plugin/test/plugin.test.js ROSTER, live/e2e.js SUBAGENTS, internal/guard/opencode.go roster) from agents-manifest.json / loadAgents so roster changes stop touching tests (opencode-roster builder)."
+    }
+  ]
+}

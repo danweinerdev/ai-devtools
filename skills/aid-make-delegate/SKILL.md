@@ -16,13 +16,19 @@ user-invocable: false
 |---|---|---|
 | aid-explorer | research, locating, comparing options, reading branches and references | deciding |
 | aid-mechanic | well-specified technical building: features from a clear spec, tests, wiring, refactors | open design questions |
-| aid-oracle | high-risk or novel implementation (concurrency, security, data migration, core algorithms) | routine work, where it's wasted |
+| aid-oracle | high-risk or novel implementation (concurrency, security, data migration, core algorithms); builds, never reviews | routine work, where it's wasted, and any review |
+| aid-auditor | PRD compliance review, and the independent PRD-against-code judgement | building |
+| aid-navigator | goal drift review | building |
+| aid-inspector | quality review, with the bug-class checklist and weakened proof; a single risky task's diff before its gate | building |
+| aid-skeptic | fresh eyes review | building |
 | aid-sage | cross-project architecture, a problem another specialist reported it couldn't settle, and the final-gate PRD review | one project's contained architecture (aid-oracle's), and routine work |
 | aid-designer | visual and UX direction: flows, layout, interaction, visual language | writing production code |
 | aid-creator | first-pass creative work: drafts, copy, prototypes, sketches, first versions | final polish |
 | aid-craftsman | complex refinement: turning a working first pass into a finished one, hard polish, deep cleanup | greenfield first passes |
 
 Project agents are routing targets too, when their description fits the task better than a built-in role. Models are configured per harness; don't name models in briefs.
+
+Review lenses go to their reviewers, and the `review-gate` task that closes a feature is held by the orchestrator, which runs the review itself (aid-make-review): it's never delegated to a builder.
 
 Route to aid-sage sparingly, on the orchestrator's judgement, never as a default step, and say why. A question that crosses more than one project is its; one contained in a project is aid-oracle's. So is a problem another specialist reported it couldn't settle, and the PRD review at the final completion gate.
 

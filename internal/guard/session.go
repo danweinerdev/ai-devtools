@@ -23,7 +23,11 @@ const claudePolicy = `## Routing policy (aid)
 Roster roles (spawn these by name; plugin agents may appear as ` + "`ai-development:aid-<role>`" + `):
 - aid-explorer: read-only research. Evidence-backed findings, conflicts, search trails.
 - aid-mechanic: well-specified technical building. Stops on mismatch.
-- aid-oracle: high-risk or novel implementation, and independent single-lens review. A deliberate role, not an escalation fallback; spawn it directly.
+- aid-oracle: high-risk or novel implementation. Builds; never reviews. A deliberate role, not an escalation fallback; spawn it directly.
+- aid-auditor: read-only review. PRD compliance at the gates, the independent PRD-against-code judgement, and the challenge's grounding lens.
+- aid-navigator: read-only review. Goal drift at the gates, and the challenge's goals lens.
+- aid-inspector: read-only review. Code quality, the bug-class checklist and weakened proof; it knows no intent.
+- aid-skeptic: read-only review. Fresh eyes on the diff, and the challenge's coherence lens; it knows only its input.
 - aid-sage: architecture that crosses projects, the hardest problems, and the final-gate PRD review. Used sparingly, never a default step; say why when you route to it.
 - aid-designer: visual and UX direction and design review. No production code.
 - aid-creator: first-pass creative work, marked with its soft spots.
@@ -32,7 +36,7 @@ Roster roles (spawn these by name; plugin agents may appear as ` + "`ai-developm
 Stay in the main loop for: the user conversation, judgement, the PRD gate, synthesis, planning, and one-shot deterministic commands whose output is the answer. Delegate discovery that reads far more than it answers.
 
 Built-ins are blocked and replaced:
-- general-purpose -> the matching aid-* role (building: aid-mechanic; high-risk or deep review: aid-oracle; research: aid-explorer).
+- general-purpose -> the matching aid-* role (building: aid-mechanic; high-risk building: aid-oracle; review of a lens: aid-auditor, aid-navigator, aid-inspector or aid-skeptic; research: aid-explorer).
 - Explore -> aid-explorer.
 - Plan -> stay in the main loop with the aid-think and aid-make-breakdown skills.
 - aid-orchestrator is the main conversation, never a subagent.
@@ -46,7 +50,11 @@ const openCodePolicy = `## Routing policy (aid)
 Roster roles (delegate to these by name with the subagent tool):
 - aid-explorer: read-only research. Evidence-backed findings, conflicts, search trails.
 - aid-mechanic: well-specified technical building. Stops on mismatch.
-- aid-oracle: high-risk or novel implementation, and independent single-lens review. A deliberate role, not an escalation fallback; delegate to it directly.
+- aid-oracle: high-risk or novel implementation. Builds; never reviews. A deliberate role, not an escalation fallback; delegate to it directly.
+- aid-auditor: read-only review. PRD compliance at the gates, the independent PRD-against-code judgement, and the challenge's grounding lens.
+- aid-navigator: read-only review. Goal drift at the gates, and the challenge's goals lens.
+- aid-inspector: read-only review. Code quality, the bug-class checklist and weakened proof; it knows no intent.
+- aid-skeptic: read-only review. Fresh eyes on the diff, and the challenge's coherence lens; it knows only its input.
 - aid-sage: architecture that crosses projects, the hardest problems, and the final-gate PRD review. Used sparingly, never a default step; say why when you route to it.
 - aid-designer: visual and UX direction and design review. No production code.
 - aid-creator: first-pass creative work, marked with its soft spots.
@@ -55,7 +63,7 @@ Roster roles (delegate to these by name with the subagent tool):
 Stay in the main loop for: the user conversation, judgement, the PRD gate, synthesis, planning, and one-shot deterministic commands whose output is the answer. Delegate discovery that reads far more than it answers.
 
 OpenCode's built-ins are blocked and replaced:
-- general -> the matching aid-* role (building: aid-mechanic; high-risk or deep review: aid-oracle; research: aid-explorer).
+- general -> the matching aid-* role (building: aid-mechanic; high-risk building: aid-oracle; review of a lens: aid-auditor, aid-navigator, aid-inspector or aid-skeptic; research: aid-explorer).
 - explore -> aid-explorer.
 - plan and build are primary agents, not subagents: plan's work stays in the main loop with the aid-think and aid-make-breakdown skills.
 - aid-orchestrator is the main conversation, never a subagent.

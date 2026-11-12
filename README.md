@@ -1,6 +1,6 @@
 # ai-development
 
-A judgement-first development workflow for coding agents: three optional loops, seven specialist agents, and **living PRDs** at the centre. It ships from one source to **Claude Code**, **Codex**, and **OpenCode**.
+A judgement-first development workflow for coding agents: three optional loops, eleven specialist agents, and **living PRDs** at the centre. It ships from one source to **Claude Code**, **Codex**, and **OpenCode**.
 
 ```
 Think  Explore → Challenge → Clarify → Choose     decide, as PRD changes the user approves
@@ -29,7 +29,11 @@ No skill is a user command. The model picks them up from what's being discussed,
 |---|---|---|
 | `aid-explorer` | haiku | Read-only research with evidence |
 | `aid-mechanic` | sonnet | Well-specified technical building |
-| `aid-oracle` | opus | High-risk implementation and independent review |
+| `aid-oracle` | opus | High-risk or novel implementation; builds, never reviews |
+| `aid-auditor` | opus | Read-only review: PRD compliance, and the independent PRD-against-code judgement |
+| `aid-navigator` | opus | Read-only review: goal drift |
+| `aid-inspector` | haiku | Read-only review: quality, the bug-class checklist, and weakened proof |
+| `aid-skeptic` | sonnet | Read-only review: fresh eyes, and the challenge's coherence lens |
 | `aid-sage` | fable | Cross-project architecture, the hardest problems, and the final-gate PRD review |
 | `aid-designer` | opus | Visual and UX direction |
 | `aid-creator` | sonnet | First-pass creative work |

@@ -87,6 +87,8 @@ Every refusal exits 1, writes the message to stderr, and with `--json` also prin
 
 **Building the graph from a breakdown.** After the user approves the breakdown text (aid-make-breakdown), run `init <name>`, then one `add-task` per step, in dependency order so every need already exists. Then `validate` and `ready` to show the starting frontier. From here the graph is authoritative; the breakdown text isn't updated.
 
+**Adding the review gate.** Each feature ends in a `review-gate` task, added last for its feature (aid-make-breakdown): `--needs` on all the feature's tasks, and its `--check` flags repeating theirs, so completing it re-runs the feature's batch. A fix that comes out of review is a new task, and the gate is updated with `update-task --needs` after `release-task` if it's held.
+
 **Writing good checks.** A check is the proof a task is done, and it stays attached to the task for the whole feature. Prefer the specific tests written for the task (one test file, one test name) over the whole suite, so the batch stays meaningful and fast. Never an interactive command, and never one that depends on the current branch or commit. Each check gets ten minutes; a timeout or an interrupt kills everything it started. Checks run through the shell with the caller's environment, so `tasks.json` is code: review changes to it as you would a script. The lock is advisory and may not hold on a network filesystem, so keep `.aid/` on local disk.
 
 **Writing footprints.** Paths relative to the repository root. They survive rebases and drive `check --paths`, so keep them accurate when a task's scope changes (`update-task`).

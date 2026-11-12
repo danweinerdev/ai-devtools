@@ -3,6 +3,20 @@
   "plugin": "ai-development",
   "agents": [
     {
+      "name": "aid-auditor",
+      "role": "auditor",
+      "loop": "make",
+      "model": "opus",
+      "readOnly": true,
+      "capabilities": [
+        "prd-compliance-review",
+        "prd-versus-code-judgement",
+        "grounding-challenge"
+      ],
+      "description": "Read-only reviewer for PRD compliance. It holds the diff against the governing PRD's sections so every described behaviour is present and correct, judges a PRD against the code from aid-explorer's behaviour-to-code map, and runs the challenge's grounding lens. Use it at review gates, when a PRD-against-code check has to be independent, or when a PRD is being challenged.",
+      "path": "agents/aid-auditor.md"
+    },
+    {
       "name": "aid-craftsman",
       "role": "craftsman",
       "loop": "make",
@@ -72,6 +86,21 @@
       "path": "agents/aid-explorer.md"
     },
     {
+      "name": "aid-inspector",
+      "role": "inspector",
+      "loop": "make",
+      "model": "haiku",
+      "readOnly": true,
+      "capabilities": [
+        "quality-review",
+        "bug-class-checklist",
+        "weakened-proof",
+        "test-quality"
+      ],
+      "description": "Read-only reviewer for code quality. It judges the diff as code, knowing no intent: correctness, safety, resources, concurrency, interface contracts, and test quality, carrying the bug-class checklist and hunting weakened proof. Use it at review gates, and on a single risky task's diff before the gate.",
+      "path": "agents/aid-inspector.md"
+    },
+    {
       "name": "aid-mechanic",
       "role": "mechanic",
       "loop": "make",
@@ -89,6 +118,19 @@
       "path": "agents/aid-mechanic.md"
     },
     {
+      "name": "aid-navigator",
+      "role": "navigator",
+      "loop": "make",
+      "model": "opus",
+      "readOnly": true,
+      "capabilities": [
+        "goal-drift-review",
+        "goals-challenge"
+      ],
+      "description": "Read-only reviewer for goal drift. It holds the built result against the PRD's overview and goals, so what was built taken as a whole still serves what the PRD set out to do, and runs the challenge's goals lens. Use it at review gates, or when a PRD's goals are being challenged.",
+      "path": "agents/aid-navigator.md"
+    },
+    {
       "name": "aid-oracle",
       "role": "oracle",
       "loop": "make",
@@ -98,11 +140,9 @@
         "high-risk-implementation",
         "architecture",
         "deep-debugging",
-        "security-analysis",
-        "isolated-review",
-        "prd-challenge"
+        "security-analysis"
       ],
-      "description": "Senior engineer for high-risk work and independent review. It implements novel or dangerous changes (concurrency, security, data migration, core algorithms, irreversible operations) and reviews work through the single isolated lens its brief names (PRD compliance, goal drift, quality, fresh eyes, or one of the adversarial PRD challenge lenses). Use it when being wrong is expensive, or for any review that has to be independent.",
+      "description": "Senior engineer for high-risk work. It implements novel or dangerous changes (concurrency, security, data migration, core algorithms, irreversible operations). Use it when being wrong is expensive.",
       "path": "agents/aid-oracle.md"
     },
     {
@@ -119,6 +159,19 @@
       ],
       "description": "Principal architect for architecture that crosses more than one project, the hardest problems no other role could settle, and the PRD review before work is called done. It weighs options against established principles, gives one recommendation with its trade-offs, and lands architecture as PRD fragments; when settling a design needs code, it builds that piece under the normal proof rules. Use it sparingly, on the orchestrator's judgement, never as a default step; architecture inside one project belongs to aid-oracle.",
       "path": "agents/aid-sage.md"
+    },
+    {
+      "name": "aid-skeptic",
+      "role": "skeptic",
+      "loop": "make",
+      "model": "sonnet",
+      "readOnly": true,
+      "capabilities": [
+        "fresh-eyes-review",
+        "coherence-challenge"
+      ],
+      "description": "Read-only adversarial reviewer. It gets the diff, or the PRD alone, and assumes the change is broken: it hunts the concrete failure scenarios intent-aware reviewers forgive, and the PRD's contradictions, in its own context. Use it at review gates for fresh eyes, or when a PRD is being challenged.",
+      "path": "agents/aid-skeptic.md"
     }
   ]
 }

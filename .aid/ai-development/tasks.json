@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "reviewer-agents",
+      "title": "Four reviewer agents; checklist into aid-inspector; aid-oracle builds only (PRD › The agent roster)",
+      "needs": [],
+      "footprint": [
+        "agents",
+        "agents-manifest.json",
+        "dist"
+      ],
+      "done": {
+        "result": "four read-only reviewers with the PRD's model and effort; oracle carries no review role",
+        "checks": [
+          "go run ./tools/plugin-compiler --check",
+          "for a in auditor:opus navigator:opus inspector:haiku skeptic:sonnet; do f=agents/aid-${a%%:*}.md; grep -q \"^model: ${a#*:}$\" $f && grep -q \"^effort: high$\" $f && grep -q \"^readOnly: true$\" $f && grep -q \"^## PRD changes proposed\" $f || exit 1; done",
+          "! grep -nE 'isolated-review|prd-challenge|^## Reviewing|independent review' agents/aid-oracle.md",
+          "grep -q 'Test quality' agents/aid-inspector.md"
+        ]
+      },
+      "state": {
+        "status": "done"
+      },
+      "session": "ses_e30fe9681ffeS0g93nNgwLMoJb"
+    },
+    {
+      "id": "compiler-effort",
+      "title": "Validate effort in agent frontmatter (PRD › Agent frontmatter)",
+      "needs": [],
+      "footprint": [
+        "tools/plugin-compiler"
+      ],
+      "done": {
+        "result": "a bad effort fails the build; a valid or absent one passes",
+        "checks": [
+          "go test ./tools/plugin-compiler -run Effort"
+        ]
+      },
+      "state": {
+        "status": "done"
+      },
+      "session": "ses_e30fe7d50ffeHSJJvKxx7ZMo0E"
+    },
+    {
+      "id": "guard-roster",
+      "title": "Guard roster and routing policy name the reviewers (PRD › The agent roster, Guardrails › Routing policy)",
+      "needs": [],
+      "footprint": [
+        "internal/guard",
+        "cmd/aid"
+      ],
+      "done": {
+        "result": "roster has the reviewers; session policies route review to them, not aid-oracle",
+        "checks": [
+          "go test ./internal/guard/... ./cmd/aid/..."
+        ]
+      },
+      "state": {
+        "status": "done"
+      },
+      "session": "ses_e30fe6220ffeuObyH8m3KLDwt4"
+    },
+    {
+      "id": "skills-staffing",
+      "title": "Skills, README, AGENTS.md: reviewer staffing, risky-task inspector, reported skips, review gates (PRD › Make, Think)",
+      "needs": [
+        "reviewer-agents"
+      ],
+      "footprint": [
+        "skills",
+        "skills-manifest.json",
+        "dist",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "done": {
+        "result": "no skill stages review on aid-oracle; review-gate rule in breakdown and graph skills",
+        "checks": [
+          "go run ./tools/plugin-compiler --check",
+          "! grep -rnE 'default reviewer|as aid-oracle|or aid-oracle in its own context|aid-oracle does when' skills",
+          "test ! -e skills/aid-make-review/references/bug-classes.md",
+          "grep -q 'review-gate' skills/aid-make-breakdown/SKILL.md && grep -q 'review-gate' skills/aid-graph/SKILL.md",
+          "grep -q 'aid-inspector' skills/aid-make-review/SKILL.md && grep -q 'aid-auditor' skills/aid-think-challenge/SKILL.md"
+        ]
+      },
+      "state": {
+        "status": "done"
+      }
+    },
+    {
+      "id": "opencode-roster",
+      "title": "OpenCode tests and live suite know the reviewers (PRD › Models are native to each harness)",
+      "needs": [
+        "reviewer-agents"
+      ],
+      "footprint": [
+        ".opencode-plugin"
+      ],
+      "done": {
+        "result": "each reviewer registered and routable in the plugin tests",
+        "checks": [
+          "make test-opencode"
+        ]
+      },
+      "state": {
+        "status": "done"
+      }
+    },
+    {
+      "id": "assembly",
+      "title": "Assembly: regenerate and pass the gate",
+      "needs": [
+        "reviewer-agents",
+        "compiler-effort",
+        "guard-roster",
+        "skills-staffing",
+        "opencode-roster"
+      ],
+      "footprint": [
+        "agents-manifest.json",
+        "skills-manifest.json",
+        "dist"
+      ],
+      "done": {
+        "result": "make check passes",
+        "checks": [
+          "make check"
+        ]
+      },
+      "state": {
+        "status": "done"
+      }
+    },
+    {
+      "id": "review-gate",
+      "title": "Review gate and PR gate (PRD › Make › Review gates)",
+      "needs": [
+        "assembly"
+      ],
+      "footprint": [
+        "agents",
+        "agents-manifest.json",
+        "dist",
+        "tools/plugin-compiler",
+        "internal/guard",
+        "cmd/aid",
+        "skills",
+        "skills-manifest.json",
+        "README.md",
+        "AGENTS.md",
+        ".opencode-plugin"
+      ],
+      "done": {
+        "result": "the review lenses ran and every finding has an outcome",
+        "checks": [
+          "go run ./tools/plugin-compiler --check",
+          "for a in auditor:opus navigator:opus inspector:haiku skeptic:sonnet; do f=agents/aid-${a%%:*}.md; grep -q \"^model: ${a#*:}$\" $f && grep -q \"^effort: high$\" $f && grep -q \"^readOnly: true$\" $f && grep -q \"^## PRD changes proposed\" $f || exit 1; done",
+          "! grep -nE 'isolated-review|prd-challenge|^## Reviewing|independent review' agents/aid-oracle.md",
+          "grep -q 'Test quality' agents/aid-inspector.md",
+          "go test ./tools/plugin-compiler -run Effort",
+          "go test ./internal/guard/... ./cmd/aid/...",
+          "! grep -rnE 'default reviewer|as aid-oracle|or aid-oracle in its own context|aid-oracle does when' skills",
+          "test ! -e skills/aid-make-review/references/bug-classes.md",
+          "grep -q 'review-gate' skills/aid-make-breakdown/SKILL.md && grep -q 'review-gate' skills/aid-graph/SKILL.md",
+          "grep -q 'aid-inspector' skills/aid-make-review/SKILL.md && grep -q 'aid-auditor' skills/aid-think-challenge/SKILL.md",
+          "make test-opencode",
+          "make check"
+        ]
+      },
+      "state": {
+        "status": "todo"
+      }
+    }
+  ]
+}

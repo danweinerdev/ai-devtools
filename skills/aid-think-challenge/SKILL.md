@@ -28,13 +28,13 @@ The ranked list becomes the question queue for aid-think-clarify.
 
 Run it only when the user asks: they're deciding whether a PRD is ready to build and want it attacked first. It gives no verdict. Readiness is the user's call, made with everything else they know; your job is to find what would hurt.
 
-Each lens gets only its inputs and runs in its own context, as aid-oracle, so no lens can forgive what another would catch. Dispatch them in parallel, and don't pre-read their inputs into your own context.
+Each lens gets only its inputs and runs in its own context on its own reviewer, so no lens can forgive what another would catch. Dispatch them in parallel, and don't pre-read their inputs into your own context.
 
-| Lens | Gets | Attacks |
-|---|---|---|
-| Coherence | the PRD alone | contradictions between sections; ambiguity two builders would resolve differently; statements no check could prove; behaviour described without its failure case; terms used but never defined |
-| Goals | the overview and goals, plus the behaviour sections | behaviour that serves no stated goal; goals that nothing described achieves |
-| Grounding | the PRD, the code under its `code:` paths, and related PRDs, with the code evidence gathered first by aid-explorer | assumptions about existing code or sibling PRDs that don't hold, each with file:line |
+| Lens | Reviewer | Gets | Attacks |
+|---|---|---|---|
+| Coherence | aid-skeptic | the PRD alone | contradictions between sections; ambiguity two builders would resolve differently; statements no check could prove; behaviour described without its failure case; terms used but never defined |
+| Goals | aid-navigator | the overview and goals, plus the behaviour sections | behaviour that serves no stated goal; goals that nothing described achieves |
+| Grounding | aid-auditor | the PRD, the code under its `code:` paths, and related PRDs, with the code evidence gathered first by aid-explorer | assumptions about existing code or sibling PRDs that don't hold, each with file:line |
 
 Merge the lens reports into one list ranked by what would hurt most if built as written, each challenge with its lens and evidence. Challenges two lenses raise are strong. Present the list, then take the challenges the user wants to pursue through aid-think-clarify and aid-think-choose: each one they accept becomes a change fragment or an open question (aid-prd). Rejected ones are dropped without argument.
 

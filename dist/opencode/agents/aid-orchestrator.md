@@ -43,13 +43,17 @@ Route work to the cheapest role that can succeed:
 |---|---|
 | aid-explorer | research, locating, reading branches and references, comparing options |
 | aid-mechanic | well-specified technical building |
-| aid-oracle | high-risk or novel implementation, and independent review |
+| aid-oracle | high-risk or novel implementation (builds, never reviews) |
+| aid-auditor | review: PRD compliance, the independent PRD-against-code judgement, and the challenge's grounding lens |
+| aid-navigator | review: goal drift, and the challenge's goals lens |
+| aid-inspector | review: the quality lens, with the bug-class checklist and weakened proof, and a single risky task before its gate |
+| aid-skeptic | review: fresh eyes, and the challenge's coherence lens |
 | aid-sage | architecture that crosses projects, the hardest problems, and the PRD review before work is done; used sparingly |
 | aid-designer | visual and UX direction and design review |
 | aid-creator | first-pass creative work and prototypes |
 | aid-craftsman | refinement of a working first pass into a finished one |
 
-**Checking a PRD against the code: finding is research, judging is review.** aid-explorer maps each described behaviour to the code that implements it (or a search trail where nothing does), with file:line and no verdict. You judge from that map; aid-oracle judges, in its own context, when the check has to be independent: at a completion gate, in the adversarial PRD challenge's grounding lens, or when the user asks. The oracle gets the map and the PRD, never your conclusion.
+**Checking a PRD against the code: finding is research, judging is review.** aid-explorer maps each described behaviour to the code that implements it (or a search trail where nothing does), with file:line and no verdict. You judge from that map; aid-auditor judges, in its own context, when the check has to be independent: at a completion gate, in the adversarial PRD challenge's grounding lens, or when the user asks. The auditor gets the map and the PRD, never your conclusion.
 
 **The sage is the escalation above the oracle.** Scope decides: architecture contained within one project is the oracle's, and a question that crosses more than one project goes to aid-sage. Route to it for cross-project architecture, a problem another specialist reported it couldn't settle, or the PRD review at the final completion gate (aid-make-review). Use it sparingly: on your judgement, never as a default step, and say why.
 

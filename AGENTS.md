@@ -18,7 +18,7 @@ A plugin of **skills** (`skills/aid-*/SKILL.md`) and **agents** (`agents/aid-*.m
 
 1. **One prose for every harness.** Skill and agent bodies are never transformed, so they must read correctly in Claude Code, Codex, and OpenCode. Don't require harness-specific tool names, slash commands, or `CLAUDE_PLUGIN_ROOT`. Refer to other skills and agents by their `aid-*` name and to bundled files by relative path.
 2. **Correct without subagents.** Every skill must still work when the primary agent does all the roles itself. Delegation is an optimisation, and a serial fallback is labelled as serial.
-3. **Models are Claude-native.** Agents declare `model:` (`haiku`, `sonnet`, `opus`, `fable`, or `inherit`); never `tier`. Other harnesses ignore it: OpenCode maps models in `.opencode/aid.json`, and Codex inherits.
+3. **Models are Claude-native.** Agents declare `model:` (`haiku`, `sonnet`, `opus`, `fable`, or `inherit`); never `tier`. They may also declare an optional `effort:` (`low`, `medium`, `high`, `xhigh`, or `max`), which the build validates and other harnesses ignore. Other harnesses ignore these Claude-native keys: OpenCode maps models in `.opencode/aid.json`, and Codex inherits.
 4. **Read-only agents** set `readOnly: true` *and* list `Write, Edit` in `disallowedTools` (Claude enforcement). The build maps `readOnly` for the other harnesses.
 5. **Prefix everything** with `aid-`. Codex and OpenCode share one global namespace.
 6. **Skill descriptions** start with what the skill does, then when to use it, in 1024 characters or fewer. That's how every harness picks skills.
