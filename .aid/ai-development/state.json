@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "i1",
+      "kind": "note",
+      "status": "open",
+      "text": "Prose-only criterion: risky-task aid-inspector (PRD › When to verify and review, item 3) has no mechanical check; judge at review-gate."
+    },
+    {
+      "id": "i2",
+      "kind": "note",
+      "status": "open",
+      "text": "Prose-only criterion: skipped lenses named with reasons in synthesis (item 5) has no mechanical check; judge at review-gate."
+    },
+    {
+      "id": "i3",
+      "kind": "question",
+      "status": "open",
+      "text": "Installed plugin v0.2.0 lacks the reviewer agents; how are they dispatched at review-gate (load checkout vs install)? Ask the user before the gate."
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Written by aid. Lock files and crash leftovers; the rest of .aid/ is committed.
+*/.lock
+.*.aid-tmp-*
